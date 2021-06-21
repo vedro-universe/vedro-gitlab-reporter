@@ -1,1 +1,1 @@
-# vedro-gitlab-reporter
+# Vedro GitLab Reporter
