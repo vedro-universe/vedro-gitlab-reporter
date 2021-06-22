@@ -42,16 +42,29 @@ class GitlabReporter(RichReporter):
         self._prev_step_name = step_name
 
     def on_scenario_fail(self, event: ScenarioFailEvent) -> None:
-        subject = event.scenario_result.scenario_subject
-        self._console.print(f" ✗ {subject}", style=Style(color="red"))
+        scenario_result = event.scenario_result
 
-        if self._verbosity == 1:
-            self._print_collapsible_steps(event.scenario_result)
+        if self._verbosity <= 2:
+            self._console.print(f" ✗ {scenario_result.scenario_subject}", style=Style(color="red"))
+            if self._verbosity == 1:
+                self._print_collapsible_steps(scenario_result)
+            elif self._verbosity == 2:
+                self._print_steps_with_collapsible_scope(scenario_result)
+                self._console.print()
+                self._print_exceptions(scenario_result)
+        else:
+            section_name = str(uuid4())
+            started_at = int(scenario_result.started_at) if scenario_result.started_at else 0
+            self._print_section_start(section_name, started_at, is_collapsed=False)
+            self._console.print(f" ✗ {scenario_result.scenario_subject}", style=Style(color="red"))
 
-        if self._verbosity > 1:
-            self._print_steps_with_collapsible_scope(event.scenario_result)
-            self._console.print()
-            self._print_exceptions(event.scenario_result)
+            self._print_steps(scenario_result)
+            self._print_exceptions(scenario_result)
+
+            ended_at = int(scenario_result.ended_at) if scenario_result.ended_at else 0
+            self._print_section_end(section_name, ended_at)
+
+            self._print_collapsible_scope(scenario_result)
 
     def _print_section_start(self, name: str, started_at: int = 0,
                              is_collapsed: bool = True) -> None:
@@ -62,6 +75,15 @@ class GitlabReporter(RichReporter):
     def _print_section_end(self, name: str, ended_at: int = 0) -> None:
         output = f'\033[0Ksection_end:{ended_at}:{name}\r\033[0K'
         self._console.file.write(output)
+
+    def _print_steps(self, scenario_result: ScenarioResult) -> None:
+        for step_result in scenario_result.step_results:
+            if step_result.is_passed():
+                self._console.print(f"    ✔ {step_result.step_name}",
+                                    style=Style(color="green"))
+            elif step_result.is_failed():
+                self._console.print(f"    ✗ {step_result.step_name}",
+                                    style=Style(color="red"))
 
     def _print_collapsible_steps(self, scenario_result: ScenarioResult) -> None:
         for step_result in scenario_result.step_results:
@@ -79,7 +101,7 @@ class GitlabReporter(RichReporter):
             scope = scenario_result.scope if scenario_result.scope else {}
             for key, val in format_scope(scope):
                 if key in self._scenario_steps[step_result.step_name]:
-                    self._console.print(f"       {key}: ", style=Style(color="blue"))
+                    self._console.print(f"      {key}: ", style=Style(color="blue"))
                     self._console.print(val)
 
             ended_at = int(step_result.ended_at) if step_result.ended_at else 0
@@ -99,7 +121,7 @@ class GitlabReporter(RichReporter):
                 if key in self._scenario_steps[step_result.step_name]:
                     section_name = str(uuid4())
                     self._print_section_start(section_name)
-                    self._console.print(f"       {key}: ", style=Style(color="blue"))
+                    self._console.print(f"      {key}: ", style=Style(color="blue"))
                     self._console.print(val)
                     self._print_section_end(section_name)
 
@@ -110,3 +132,15 @@ class GitlabReporter(RichReporter):
             exc_info = step_result.exc_info
             tb = format_exception(exc_info.type, exc_info.value, exc_info.traceback)
             self._console.print("".join(tb), style=Style(color="yellow"))
+
+    def _print_collapsible_scope(self, scenario_result: ScenarioResult) -> None:
+        section_name = str(uuid4())
+        self._print_section_start(section_name)
+        self._console.print("Scope:", style=Style(color="blue", bold=True))
+
+        scope = scenario_result.scope if scenario_result.scope else {}
+        for key, val in format_scope(scope):
+            self._console.print(f" {key}: ", end="", style=Style(color="blue"))
+            self._console.print(val)
+
+        self._print_section_end(section_name)
