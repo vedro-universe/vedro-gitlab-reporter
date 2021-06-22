@@ -4,13 +4,7 @@ from uuid import uuid4
 
 from rich.style import Style
 from vedro._core import Dispatcher, ScenarioResult
-from vedro._events import (
-    ScenarioFailEvent,
-    ScenarioPassEvent,
-    ScenarioRunEvent,
-    StepFailEvent,
-    StepPassEvent,
-)
+from vedro._events import ScenarioFailEvent, ScenarioRunEvent, StepFailEvent, StepPassEvent
 from vedro.plugins.director import RichReporter
 from vedro.plugins.director.rich.utils import format_scope
 
@@ -47,22 +41,6 @@ class GitlabReporter(RichReporter):
             self._scenario_steps[step_name] = set(step_scope)
         self._prev_step_name = step_name
 
-    def on_scenario_pass(self, event: ScenarioPassEvent) -> None:
-        scenario_result = event.scenario_result
-        subject = scenario_result.scenario_subject
-
-        if self._verbosity <= 2:
-            self._console.print(f" ✔ {subject}", style=Style(color="green"))
-        else:
-            section_name = str(uuid4())
-            started_at = int(scenario_result.started_at) if scenario_result.started_at else 0
-            self._print_section_start(section_name, started_at)
-
-            self._console.print(f" ✔ {subject}", style=Style(color="green"))
-
-            ended_at = int(scenario_result.ended_at) if scenario_result.ended_at else 0
-            self._print_section_end(section_name, ended_at)
-
     def on_scenario_fail(self, event: ScenarioFailEvent) -> None:
         scenario_result = event.scenario_result
 
@@ -70,20 +48,22 @@ class GitlabReporter(RichReporter):
             self._console.print(f" ✗ {scenario_result.scenario_subject}", style=Style(color="red"))
             if self._verbosity == 1:
                 self._print_collapsible_steps(scenario_result)
+                self._print_exceptions(scenario_result)
             elif self._verbosity == 2:
                 self._print_steps_with_collapsible_scope(scenario_result)
-                self._console.print()
                 self._print_exceptions(scenario_result)
         else:
             section_name = str(uuid4())
             started_at = int(scenario_result.started_at) if scenario_result.started_at else 0
-            self._print_section_start(section_name, started_at)
+            self._print_section_start(section_name, started_at, is_collapsed=False)
             self._console.print(f" ✗ {scenario_result.scenario_subject}", style=Style(color="red"))
-            ended_at = int(scenario_result.ended_at) if scenario_result.ended_at else 0
-            self._print_section_end(section_name, ended_at)
 
             self._print_steps(scenario_result)
             self._print_exceptions(scenario_result)
+
+            ended_at = int(scenario_result.ended_at) if scenario_result.ended_at else 0
+            self._print_section_end(section_name, ended_at)
+
             self._print_collapsible_scope(scenario_result)
 
     def _print_section_start(self, name: str, started_at: int = 0,
@@ -152,6 +132,7 @@ class GitlabReporter(RichReporter):
             exc_info = step_result.exc_info
             tb = format_exception(exc_info.type, exc_info.value, exc_info.traceback)
             self._console.print("".join(tb), style=Style(color="yellow"))
+        self._console.print(" ")
 
     def _print_collapsible_scope(self, scenario_result: ScenarioResult) -> None:
         section_name = str(uuid4())
