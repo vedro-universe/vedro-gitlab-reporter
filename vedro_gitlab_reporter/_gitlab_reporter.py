@@ -49,9 +49,11 @@ class GitlabReporter(RichReporter):
             if self._verbosity == 1:
                 self._print_collapsible_steps(scenario_result)
                 self._print_exceptions(scenario_result)
+                self._console.print(" ")
             elif self._verbosity == 2:
                 self._print_steps_with_collapsible_scope(scenario_result)
                 self._print_exceptions(scenario_result)
+                self._console.print(" ")
         else:
             section_name = str(uuid4())
             started_at = int(scenario_result.started_at) if scenario_result.started_at else 0
@@ -132,7 +134,6 @@ class GitlabReporter(RichReporter):
             exc_info = step_result.exc_info
             tb = format_exception(exc_info.type, exc_info.value, exc_info.traceback)
             self._console.print("".join(tb), style=Style(color="yellow"))
-        self._console.print(" ")
 
     def _print_collapsible_scope(self, scenario_result: ScenarioResult) -> None:
         section_name = str(uuid4())
