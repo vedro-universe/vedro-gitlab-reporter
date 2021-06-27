@@ -23,6 +23,7 @@ setup(
     url="https://github.com/nikitanovosibirsk/vedro-gitlab-reporter",
     license="Apache-2.0",
     packages=find_packages(exclude=("tests",)),
+    package_data={"vedro_gitlab_reporter": ["py.typed"]},
     install_requires=find_required(),
     tests_require=find_dev_required(),
     classifiers=[

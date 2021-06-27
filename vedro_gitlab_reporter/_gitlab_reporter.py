@@ -43,7 +43,7 @@ class GitlabReporter(RichReporter):
         scenario_result = event.scenario_result
 
         if self._verbosity <= 2:
-            self._console.out(f" ✗ {scenario_result.scenario_subject}", style=Style(color="red"))
+            self._print_scenario_subject(scenario_result)
             if self._verbosity == 1:
                 self._print_collapsable_steps(scenario_result)
                 self._print_exceptions(scenario_result)
@@ -54,7 +54,7 @@ class GitlabReporter(RichReporter):
             section_name = str(uuid4())
             started_at = int(scenario_result.started_at) if scenario_result.started_at else 0
             self._print_section_start(section_name, started_at, is_collapsed=False)
-            self._console.out(f" ✗ {scenario_result.scenario_subject}", style=Style(color="red"))
+            self._print_scenario_subject(scenario_result)
 
             self._print_steps(scenario_result)
             self._print_exceptions(scenario_result)
@@ -76,10 +76,13 @@ class GitlabReporter(RichReporter):
 
     def _print_steps(self, scenario_result: ScenarioResult) -> None:
         for step_result in scenario_result.step_results:
-            if step_result.is_passed():
-                self._console.out(f"    ✔ {step_result.step_name}", style=Style(color="green"))
-            elif step_result.is_failed():
-                self._console.out(f"    ✗ {step_result.step_name}", style=Style(color="red"))
+            self._print_step_name(step_result)
+
+    def _print_exceptions(self, scenario_result: ScenarioResult) -> None:
+        for step_result in scenario_result.step_results:
+            if step_result.exc_info:
+                self._print_exception(step_result.exc_info.value,
+                                      step_result.exc_info.traceback)
 
     def _print_collapsable_steps(self, scenario_result: ScenarioResult) -> None:
         for step_result in scenario_result.step_results:
@@ -87,10 +90,7 @@ class GitlabReporter(RichReporter):
             started_at = int(step_result.started_at) if step_result.started_at else 0
             self._print_section_start(section_name, started_at)
 
-            if step_result.is_passed():
-                self._console.out(f"    ✔ {step_result.step_name}", style=Style(color="green"))
-            elif step_result.is_failed():
-                self._console.out(f"    ✗ {step_result.step_name}", style=Style(color="red"))
+            self._print_step_name(step_result)
 
             scope = scenario_result.scope if scenario_result.scope else {}
             for key, val in self._format_scope(scope):
@@ -103,10 +103,7 @@ class GitlabReporter(RichReporter):
 
     def _print_steps_with_collapsable_scope(self, scenario_result: ScenarioResult) -> None:
         for step_result in scenario_result.step_results:
-            if step_result.is_passed():
-                self._console.out(f"    ✔ {step_result.step_name}", style=Style(color="green"))
-            elif step_result.is_failed():
-                self._console.out(f"    ✗ {step_result.step_name}", style=Style(color="red"))
+            self._print_step_name(step_result)
 
             scope = scenario_result.scope if scenario_result.scope else {}
             for key, val in self._format_scope(scope):
@@ -117,22 +114,8 @@ class GitlabReporter(RichReporter):
                     self._console.out(val)
                     self._print_section_end(section_name)
 
-    def _print_exceptions(self, scenario_result: ScenarioResult) -> None:
-        for step_result in scenario_result.step_results:
-            if step_result.exc_info:
-                self._print_exception(step_result.exc_info.value,
-                                      step_result.exc_info.traceback,
-                                      hide_internal_calls=not self._tb_show_internal_calls,
-                                      show_locals=self._tb_show_locals)
-
     def _print_collapsable_scope(self, scenario_result: ScenarioResult) -> None:
         section_name = str(uuid4())
         self._print_section_start(section_name)
-        self._console.out("Scope:", style=Style(color="blue", bold=True))
-
-        scope = scenario_result.scope if scenario_result.scope else {}
-        for key, val in self._format_scope(scope):
-            self._console.out(f" {key}: ", end="", style=Style(color="blue"))
-            self._console.out(val)
-
+        self._print_scope(scenario_result.scope or {})
         self._print_section_end(section_name)
