@@ -1,6 +1,10 @@
 # Vedro GitLab Reporter
 
-[GitLab](https://gitlab.com) (>=12.0) reporter with collapsable sections.
+[![PyPI](https://img.shields.io/pypi/v/vedro-gitlab-reporter.svg?style=flat-square)](https://pypi.python.org/pypi/vedro-gitlab-reporter/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/vedro-gitlab-reporter?style=flat-square)](https://pypi.python.org/pypi/vedro-gitlab-reporter/)
+[![Python Version](https://img.shields.io/pypi/pyversions/vedro-gitlab-reporter.svg?style=flat-square)](https://pypi.python.org/pypi/vedro-gitlab-reporter/)
+
+[GitLab](https://gitlab.com) (>=12.0) reporter with collapsable sections
 
 ## Installation
 
