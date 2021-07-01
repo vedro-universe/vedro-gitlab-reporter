@@ -4,7 +4,7 @@
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/vedro-gitlab-reporter?style=flat-square)](https://pypi.python.org/pypi/vedro-gitlab-reporter/)
 [![Python Version](https://img.shields.io/pypi/pyversions/vedro-gitlab-reporter.svg?style=flat-square)](https://pypi.python.org/pypi/vedro-gitlab-reporter/)
 
-[GitLab](https://gitlab.com) (>=12.0) reporter with collapsable sections
+GitLab (>=12.0) reporter with [collapsable sections](https://docs.gitlab.com/ee/ci/jobs/#custom-collapsible-sections)
 
 ## Installation
 
