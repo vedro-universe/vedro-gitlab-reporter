@@ -15,6 +15,7 @@ class GitlabReporter(RichReporter):
         self._scenario_result: Union[ScenarioResult, None] = None
         self._scenario_steps: Dict[str, Set[str]] = {}
         self._prev_step_name: Union[str, None] = None
+        self._prev_scope: Set[str] = set()
 
     def subscribe(self, dispatcher: Dispatcher) -> None:
         super().subscribe(dispatcher)
@@ -26,17 +27,19 @@ class GitlabReporter(RichReporter):
         self._scenario_result = event.scenario_result
         self._scenario_steps = {}
         self._prev_step_name = None
+        self._prev_scope = set()
 
     def on_step_end(self, event: StepPassedEvent) -> None:
         assert isinstance(self._scenario_result, ScenarioResult)
 
-        step_scope = self._scenario_result.scope.keys() if self._scenario_result.scope else set()
         step_name = event.step_result.step_name
-        if self._prev_step_name is not None:
-            prev_step_scope = self._scenario_steps[self._prev_step_name]
-            self._scenario_steps[step_name] = set(step_scope) - set(prev_step_scope)
+        if self._scenario_result.scope:
+            step_scope = set(self._scenario_result.scope.keys())
         else:
-            self._scenario_steps[step_name] = set(step_scope)
+            step_scope = set()
+
+        self._scenario_steps[step_name] = step_scope - self._prev_scope
+        self._prev_scope = step_scope
         self._prev_step_name = step_name
 
     def on_scenario_failed(self, event: ScenarioFailedEvent) -> None:
