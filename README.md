@@ -1,5 +1,6 @@
 # Vedro GitLab Reporter
 
+[![Codecov](https://img.shields.io/codecov/c/github/nikitanovosibirsk/vedro-gitlab-reporter/master.svg?style=flat-square)](https://codecov.io/gh/nikitanovosibirsk/vedro-gitlab-reporter)
 [![PyPI](https://img.shields.io/pypi/v/vedro-gitlab-reporter.svg?style=flat-square)](https://pypi.python.org/pypi/vedro-gitlab-reporter/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/vedro-gitlab-reporter?style=flat-square)](https://pypi.python.org/pypi/vedro-gitlab-reporter/)
 [![Python Version](https://img.shields.io/pypi/pyversions/vedro-gitlab-reporter.svg?style=flat-square)](https://pypi.python.org/pypi/vedro-gitlab-reporter/)

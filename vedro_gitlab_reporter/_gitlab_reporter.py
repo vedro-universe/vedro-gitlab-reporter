@@ -1,8 +1,8 @@
+import uuid
 from typing import Any, Dict, Set, Union
-from uuid import uuid4
 
 from rich.style import Style
-from vedro._core import Dispatcher, ScenarioResult
+from vedro.core import Dispatcher, ScenarioResult
 from vedro.events import ScenarioFailedEvent, ScenarioRunEvent, StepFailedEvent, StepPassedEvent
 from vedro.plugins.director import RichReporter
 
@@ -29,7 +29,7 @@ class GitlabReporter(RichReporter):
         self._prev_step_name = None
         self._prev_scope = set()
 
-    def on_step_end(self, event: StepPassedEvent) -> None:
+    def on_step_end(self, event: Union[StepPassedEvent, StepFailedEvent]) -> None:
         assert isinstance(self._scenario_result, ScenarioResult)
 
         step_name = event.step_result.step_name
@@ -54,7 +54,7 @@ class GitlabReporter(RichReporter):
                 self._print_steps_with_collapsable_scope(scenario_result)
                 self._print_exceptions(scenario_result)
         else:
-            section_name = str(uuid4())
+            section_name = str(uuid.uuid4())
             started_at = int(scenario_result.started_at) if scenario_result.started_at else 0
             self._print_section_start(section_name, started_at, is_collapsed=False)
             self._print_scenario_subject(scenario_result)
@@ -89,14 +89,13 @@ class GitlabReporter(RichReporter):
 
     def _print_collapsable_steps(self, scenario_result: ScenarioResult) -> None:
         for step_result in scenario_result.step_results:
-            section_name = str(uuid4())
+            section_name = str(uuid.uuid4())
             started_at = int(step_result.started_at) if step_result.started_at else 0
             self._print_section_start(section_name, started_at)
 
             self._print_step_name(step_result)
 
-            scope = scenario_result.scope if scenario_result.scope else {}
-            for key, val in self._format_scope(scope):
+            for key, val in self._format_scope(scenario_result.scope):
                 if key in self._scenario_steps[step_result.step_name]:
                     self._console.out(f"      {key}: ", style=Style(color="blue"))
                     self._console.out(val)
@@ -108,17 +107,16 @@ class GitlabReporter(RichReporter):
         for step_result in scenario_result.step_results:
             self._print_step_name(step_result)
 
-            scope = scenario_result.scope if scenario_result.scope else {}
-            for key, val in self._format_scope(scope):
+            for key, val in self._format_scope(scenario_result.scope):
                 if key in self._scenario_steps[step_result.step_name]:
-                    section_name = str(uuid4())
+                    section_name = str(uuid.uuid4())
                     self._print_section_start(section_name)
                     self._console.out(f"      {key}: ", style=Style(color="blue"))
                     self._console.out(val)
                     self._print_section_end(section_name)
 
     def _print_collapsable_scope(self, scenario_result: ScenarioResult) -> None:
-        section_name = str(uuid4())
+        section_name = str(uuid.uuid4())
         self._print_section_start(section_name)
-        self._print_scope(scenario_result.scope or {})
+        self._print_scope(scenario_result.scope)
         self._print_section_end(section_name)
