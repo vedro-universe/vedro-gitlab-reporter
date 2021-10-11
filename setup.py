@@ -13,7 +13,7 @@ def find_dev_required():
 
 setup(
     name="vedro-gitlab-reporter",
-    version="0.1.2",
+    version="0.2.0",
     description="GitLab reporter with collapsable sections for Vedro framework",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
