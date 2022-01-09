@@ -57,7 +57,7 @@ async def test_reporter_scenario_run_event(*, dispatcher: Dispatcher,
 
     with then:
         assert console_.mock_calls == [
-            call.out(f"* {scenario_result.scenario_namespace}", style=Style.parse("bold"))
+            call.out(f"* {scenario_result.scenario.namespace}", style=Style.parse("bold"))
         ]
 
 
@@ -76,7 +76,7 @@ async def test_reporter_scenario_failed_event_verbose0(*, dispatcher: Dispatcher
 
     with then:
         assert console_.mock_calls == [
-            call.out(f" ✗ {scenario_result.scenario_subject}", style=Style.parse("red"))
+            call.out(f" ✗ {scenario_result.scenario.subject}", style=Style.parse("red"))
         ]
 
 
@@ -96,7 +96,7 @@ async def test_reporter_scenario_failed_event_verbose1(*, dispatcher: Dispatcher
 
     with then:
         assert console_.mock_calls == [
-            call.out(f" ✗ {scenario_result.scenario_subject}", style=Style.parse("red")),
+            call.out(f" ✗ {scenario_result.scenario.subject}", style=Style.parse("red")),
             call.file.write(f"\x1b[0Ksection_start:{int(step_result.started_at)}:{uuid}"
                             "[collapsed=true]\r\x1b[0K"),
             call.out(f"    ✗ {step_result.step_name}", style=Style.parse("red")),
@@ -128,7 +128,7 @@ async def test_reporter_scenario_failed_event_verbose2(*, dispatcher: Dispatcher
 
     with then:
         assert console_.mock_calls == [
-            call.out(f" ✗ {scenario_result.scenario_subject}", style=Style.parse("red")),
+            call.out(f" ✗ {scenario_result.scenario.subject}", style=Style.parse("red")),
             call.out(f"    ✗ {step_result.step_name}", style=Style.parse("red")),
             call.file.write(f"\x1b[0Ksection_start:0:{uuid}[collapsed=true]\r\x1b[0K"),
             call.out("      key: ", style=Style.parse("blue")),
