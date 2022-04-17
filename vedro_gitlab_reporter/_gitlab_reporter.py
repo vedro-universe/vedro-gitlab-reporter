@@ -1,26 +1,32 @@
 import uuid
-from typing import Any, Dict, Set, Union
+from typing import Any, Dict, Set, Union, Type
 
 from rich.style import Style
+
 from vedro.core import Dispatcher, ScenarioResult
 from vedro.events import ScenarioRunEvent, StepFailedEvent, StepPassedEvent
-from vedro.plugins.director import RichReporter
+from vedro.plugins.director import RichReporter, RichReporterPlugin, DirectorInitEvent
 
-__all__ = ("GitlabReporter",)
+__all__ = ("GitlabReporter", "GitlabReporterPlugin",)
 
 
-class GitlabReporter(RichReporter):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+class GitlabReporterPlugin(RichReporterPlugin):
+    def __init__(self, config: Type["GitlabReporter"], **kwargs: Any) -> None:
+        super().__init__(config, **kwargs)
         self._scenario_result: Union[ScenarioResult, None] = None
         self._scenario_steps: Dict[str, Set[str]] = {}
         self._prev_step_name: Union[str, None] = None
         self._prev_scope: Set[str] = set()
 
     def subscribe(self, dispatcher: Dispatcher) -> None:
-        super().subscribe(dispatcher)
-        dispatcher.listen(StepPassedEvent, self.on_step_end) \
-                  .listen(StepFailedEvent, self.on_step_end)
+        self._dispatcher = dispatcher
+        dispatcher.listen(DirectorInitEvent, lambda e: e.director.register("gitlab", self))
+
+    def on_chosen(self) -> None:
+        assert isinstance(self._dispatcher, Dispatcher)
+        super().on_chosen()
+        self._dispatcher.listen(StepPassedEvent, self.on_step_end) \
+                        .listen(StepFailedEvent, self.on_step_end)
 
     def on_scenario_run(self, event: ScenarioRunEvent) -> None:
         super().on_scenario_run(event)
@@ -112,3 +118,7 @@ class GitlabReporter(RichReporter):
         self._print_section_start(section_name)
         self._print_scope(scenario_result.scope)
         self._print_section_end(section_name)
+
+
+class GitlabReporter(RichReporter):
+    plugin = GitlabReporterPlugin
