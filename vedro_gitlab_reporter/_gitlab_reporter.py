@@ -1,11 +1,10 @@
 import uuid
-from typing import Any, Dict, Set, Union, Type
+from typing import Any, Dict, Set, Type, Union
 
 from rich.style import Style
-
 from vedro.core import Dispatcher, ScenarioResult
 from vedro.events import ScenarioRunEvent, StepFailedEvent, StepPassedEvent
-from vedro.plugins.director import RichReporter, RichReporterPlugin, DirectorInitEvent
+from vedro.plugins.director import DirectorInitEvent, RichReporter, RichReporterPlugin
 
 __all__ = ("GitlabReporter", "GitlabReporterPlugin",)
 
