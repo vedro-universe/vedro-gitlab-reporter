@@ -1,12 +1,29 @@
 import uuid
+import warnings
+from enum import Enum
 from typing import Any, Dict, Set, Type, Union
 
 from rich.style import Style
 from vedro.core import Dispatcher, ScenarioResult
-from vedro.events import ScenarioRunEvent, StepFailedEvent, StepPassedEvent
+from vedro.events import (
+    ArgParsedEvent,
+    ArgParseEvent,
+    ScenarioRunEvent,
+    StepFailedEvent,
+    StepPassedEvent,
+)
 from vedro.plugins.director import DirectorInitEvent, RichReporter, RichReporterPlugin
 
-__all__ = ("GitlabReporter", "GitlabReporterPlugin",)
+__all__ = ("GitlabReporter", "GitlabReporterPlugin", "GitlabCollapsableMode",)
+
+
+class GitlabCollapsableMode(Enum):
+    STEPS = "steps"
+    VARS = "vars"
+    SCOPE = "scope"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class GitlabReporterPlugin(RichReporterPlugin):
@@ -16,6 +33,7 @@ class GitlabReporterPlugin(RichReporterPlugin):
         self._scenario_steps: Dict[str, Set[str]] = {}
         self._prev_step_name: Union[str, None] = None
         self._prev_scope: Set[str] = set()
+        self._collapsable_mode: Union[GitlabCollapsableMode, None] = None
 
     def subscribe(self, dispatcher: Dispatcher) -> None:
         self._dispatcher = dispatcher
@@ -26,6 +44,34 @@ class GitlabReporterPlugin(RichReporterPlugin):
         super().on_chosen()
         self._dispatcher.listen(StepPassedEvent, self.on_step_end) \
                         .listen(StepFailedEvent, self.on_step_end)
+
+    def on_arg_parse(self, event: ArgParseEvent) -> None:
+        super().on_arg_parse(event)
+        group = event.arg_parser.add_argument_group("GitLab Reporter")
+
+        group.add_argument("--gitlab-collapsable",
+                           type=GitlabCollapsableMode,
+                           choices=[x for x in GitlabCollapsableMode],
+                           help="Choose collapsable mode")
+
+    def on_arg_parsed(self, event: ArgParsedEvent) -> None:
+        super().on_arg_parsed(event)
+
+        if self._verbosity > 0:
+            if event.args.gitlab_collapsable:
+                raise ValueError("Use --gitlab-collapsable or --verbose, but not both")
+            warnings.warn("GitlabReporterPlugin: "
+                          "argument --verbose is deprecated, use --gitlab-collapsable instead",
+                          DeprecationWarning)
+
+        self._collapsable_mode = event.args.gitlab_collapsable
+        # backward compatibility
+        if self._verbosity == 1:
+            self._collapsable_mode = GitlabCollapsableMode.STEPS
+        elif self._verbosity == 2:
+            self._collapsable_mode = GitlabCollapsableMode.VARS
+        elif self._verbosity == 3:
+            self._collapsable_mode = GitlabCollapsableMode.SCOPE
 
     def on_scenario_run(self, event: ScenarioRunEvent) -> None:
         super().on_scenario_run(event)
@@ -48,16 +94,17 @@ class GitlabReporterPlugin(RichReporterPlugin):
         self._prev_step_name = step_name
 
     def _print_scenario_failed(self, scenario_result: ScenarioResult, *, indent: int = 0) -> None:
-        if self._verbosity <= 2:
-            self._print_scenario_subject(scenario_result, self._show_timings)
-            if self._verbosity == 1:
-                self._print_collapsable_steps(scenario_result, indent=4 + indent)
-                self._print_exceptions(scenario_result)
-            elif self._verbosity == 2:
-                self._print_steps_with_collapsable_scope(scenario_result, indent=4 + indent)
-                self._print_exceptions(scenario_result)
-        else:
-            self._print_scenario_subject(scenario_result, self._show_timings)
+        self._print_scenario_subject(scenario_result, self._show_timings)
+
+        if self._collapsable_mode == GitlabCollapsableMode.STEPS:
+            self._print_collapsable_steps(scenario_result, indent=4 + indent)
+            self._print_exceptions(scenario_result)
+
+        elif self._collapsable_mode == GitlabCollapsableMode.VARS:
+            self._print_steps_with_collapsable_scope(scenario_result, indent=4 + indent)
+            self._print_exceptions(scenario_result)
+
+        elif self._collapsable_mode == GitlabCollapsableMode.SCOPE:
             self._print_steps(scenario_result, indent=4 + indent)
             self._print_exceptions(scenario_result)
             self._print_collapsable_scope(scenario_result)

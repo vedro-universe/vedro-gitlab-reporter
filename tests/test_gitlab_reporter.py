@@ -1,5 +1,6 @@
+from argparse import Namespace
 from contextlib import contextmanager
-from typing import Optional
+from typing import Optional, Union
 from unittest.mock import Mock, call, patch
 from uuid import uuid4
 
@@ -15,12 +16,11 @@ from vedro.plugins.director.rich.test_utils import (
     console_,
     director,
     dispatcher,
-    make_parsed_args,
     make_scenario_result,
     make_step_result,
 )
 
-from vedro_gitlab_reporter import GitlabReporter, GitlabReporterPlugin
+from vedro_gitlab_reporter import GitlabCollapsableMode, GitlabReporter, GitlabReporterPlugin
 
 __all__ = ("dispatcher", "console_", "director", "chose_reporter",)
 
@@ -38,6 +38,20 @@ def patch_uuid(uuid: Optional[str] = None):
         uuid = str(uuid4())
     with patch("uuid.uuid4", Mock(return_value=uuid)):
         yield uuid
+
+
+def make_parsed_args(*,
+                     verbose: int = 0,
+                     gitlab_collapsable: Union[GitlabCollapsableMode, None] = None) -> Namespace:
+    return Namespace(
+        verbose=verbose,
+        gitlab_collapsable=gitlab_collapsable,
+        show_timings=False,
+        show_paths=False,
+        tb_show_internal_calls=False,
+        tb_show_locals=False,
+        reruns=0,
+    )
 
 
 def test_gitlab_reporter():
@@ -67,14 +81,19 @@ async def test_reporter_scenario_run_event(*, dispatcher: Dispatcher,
         ]
 
 
+@pytest.mark.parametrize("args", [
+    make_parsed_args(verbose=0),  # backward compatibility
+    make_parsed_args(gitlab_collapsable=None),
+])
 @pytest.mark.asyncio
-async def test_reporter_scenario_failed_event_verbose0(*, dispatcher: Dispatcher,
+async def test_reporter_scenario_failed_event_verbose0(args: Namespace, *,
+                                                       dispatcher: Dispatcher,
                                                        director: DirectorPlugin,
                                                        reporter: GitlabReporterPlugin,
                                                        console_: Mock):
     with given:
         await chose_reporter(dispatcher, director, reporter)
-        await dispatcher.fire(ArgParsedEvent(make_parsed_args(verbose=0)))
+        await dispatcher.fire(ArgParsedEvent(args))
 
         scenario_result = make_scenario_result().mark_failed()
         event = ScenarioFailedEvent(scenario_result)
@@ -88,14 +107,19 @@ async def test_reporter_scenario_failed_event_verbose0(*, dispatcher: Dispatcher
         ]
 
 
+@pytest.mark.parametrize("args", [
+    make_parsed_args(verbose=1),  # backward compatibility
+    make_parsed_args(gitlab_collapsable=GitlabCollapsableMode.STEPS),
+])
 @pytest.mark.asyncio
-async def test_reporter_scenario_failed_event_verbose1(*, dispatcher: Dispatcher,
+async def test_reporter_scenario_failed_event_verbose1(args: Namespace, *,
+                                                       dispatcher: Dispatcher,
                                                        director: DirectorPlugin,
                                                        reporter: GitlabReporterPlugin,
                                                        console_: Mock):
     with given:
         await chose_reporter(dispatcher, director, reporter)
-        await dispatcher.fire(ArgParsedEvent(make_parsed_args(verbose=1)))
+        await dispatcher.fire(ArgParsedEvent(args))
 
         step_result = make_step_result().mark_failed().set_started_at(1.0).set_ended_at(3.0)
         scenario_result = make_scenario_result(step_results=[step_result]).mark_failed()
@@ -114,14 +138,19 @@ async def test_reporter_scenario_failed_event_verbose1(*, dispatcher: Dispatcher
         ]
 
 
+@pytest.mark.parametrize("args", [
+    make_parsed_args(verbose=2),  # backward compatibility
+    make_parsed_args(gitlab_collapsable=GitlabCollapsableMode.VARS),
+])
 @pytest.mark.asyncio
-async def test_reporter_scenario_failed_event_verbose2(*, dispatcher: Dispatcher,
+async def test_reporter_scenario_failed_event_verbose2(args: Namespace, *,
+                                                       dispatcher: Dispatcher,
                                                        director: DirectorPlugin,
                                                        reporter: GitlabReporterPlugin,
                                                        console_: Mock):
     with given:
         await chose_reporter(dispatcher, director, reporter)
-        await dispatcher.fire(ArgParsedEvent(make_parsed_args(verbose=2)))
+        await dispatcher.fire(ArgParsedEvent(args))
 
         scenario_result = make_scenario_result()
         await dispatcher.fire(ScenarioRunEvent(scenario_result))
