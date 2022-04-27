@@ -9,28 +9,40 @@ GitLab (>=12.0) reporter with [collapsable sections](https://docs.gitlab.com/ee/
 
 ## Installation
 
+### 1. Install package
+
 ```shell
 $ pip3 install vedro-gitlab-reporter
 ```
 
-```python
-# ./bootstrap.py
-import vedro
-from vedro_gitlab_reporter import GitlabReporter
+### 2. Enable plugin
 
-vedro.run(plugins=[GitlabReporter()])
+```python
+# ./vedro.cfg.py
+import vedro
+import vedro_gitlab_reporter as v
+
+class Config(vedro.Config):
+
+    class Plugins(vedro.Config.Plugins):
+
+        class GitlabReporter(v.GitlabReporter):
+            enabled = True
 ```
 
+## Usage
+
+### Run tests
 ```shell
-$ python3 bootstrap.py -r gitlab -vvv
+$ python3 bootstrap.py -r gitlab --gitlab-collapsable steps
 ```
 
 ## Documentation
 
-### Verbose Levels
+`--gitlab-collapsable=<mode>`
 
-`-v` — show exception and collapsable steps
-
-`-vv` — show exception, steps and collapsable variables
-
-`-vvv` — show exception, steps and collapsable scope
+| Mode  | Description                                     |
+| ----- | ----------------------------------------------- |
+| steps | Show exception and collapsable steps            |
+| vars  | Show exception, steps and collapsable variables |
+| scope | Show exception, steps and collapsable scope     |
