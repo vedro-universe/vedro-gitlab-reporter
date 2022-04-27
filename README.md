@@ -33,8 +33,9 @@ class Config(vedro.Config):
 ## Usage
 
 ### Run tests
+
 ```shell
-$ python3 bootstrap.py -r gitlab --gitlab-collapsable steps
+$ vedro run -r gitlab --gitlab-collapsable steps
 ```
 
 ## Documentation
