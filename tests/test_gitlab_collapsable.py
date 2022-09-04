@@ -31,8 +31,7 @@ async def test_collapsable_steps(*, dispatcher: Dispatcher, printer_: Mock):
 
         step_result = make_step_result().mark_failed().set_started_at(1.0).set_ended_at(3.0)
         await dispatcher.fire(StepFailedEvent(step_result))
-        scope = {"key": "val"}
-        scenario_result.set_scope(scope)
+        scenario_result.set_scope({"key": "val"})
         scenario_result.add_step_result(step_result)
 
         aggregated_result = make_aggregated_result(scenario_result)
@@ -72,8 +71,7 @@ async def test_collapsable_vars(*, dispatcher: Dispatcher, printer_: Mock):
 
         step_result = make_step_result().mark_failed().set_started_at(1.0).set_ended_at(3.0)
         await dispatcher.fire(StepFailedEvent(step_result))
-        scope = {"key": "val"}
-        scenario_result.set_scope(scope)
+        scenario_result.set_scope({"key": "val"})
         scenario_result.add_step_result(step_result)
 
         aggregated_result = make_aggregated_result(scenario_result)
@@ -111,7 +109,6 @@ async def test_collapsable_scope(*, dispatcher: Dispatcher, printer_: Mock):
         scenario_result = make_scenario_result().mark_failed()
 
         step_result = make_step_result().mark_failed().set_started_at(1.0).set_ended_at(3.0)
-
         await dispatcher.fire(StepFailedEvent(step_result))
         scope = {"key": "val"}
         scenario_result.set_scope(scope)
