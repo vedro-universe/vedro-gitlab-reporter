@@ -1,73 +1,65 @@
-from argparse import Namespace
-from contextlib import contextmanager
-from typing import Optional, Union
-from unittest.mock import Mock, call, patch
-from uuid import uuid4
+from unittest.mock import Mock, call
 
 import pytest
 from baby_steps import given, then, when
-from rich.console import Console
-from rich.style import Style
-from vedro.core import Dispatcher
-from vedro.events import ArgParsedEvent, ScenarioFailedEvent, ScenarioRunEvent, StepFailedEvent
-from vedro.plugins.director import DirectorPlugin, Reporter
-from vedro.plugins.director.rich.test_utils import (
-    chose_reporter,
-    console_,
+from vedro.core import AggregatedResult, Dispatcher
+from vedro.core import MonotonicScenarioScheduler as ScenarioScheduler
+from vedro.core import Report, ScenarioStatus
+from vedro.events import CleanupEvent, ScenarioReportedEvent, ScenarioRunEvent, StartupEvent
+from vedro.plugins.director import DirectorInitEvent, DirectorPlugin
+
+from vedro_gitlab_reporter import GitlabReporter, GitlabReporterPlugin
+
+from ._utils import (
     director,
     dispatcher,
+    fire_arg_parsed_event,
+    gitlab_reporter,
+    make_aggregated_result,
     make_scenario_result,
-    make_step_result,
+    printer_,
 )
 
-from vedro_gitlab_reporter import GitlabCollapsableMode, GitlabReporter, GitlabReporterPlugin
-
-__all__ = ("dispatcher", "console_", "director", "chose_reporter",)
+__all__ = ("dispatcher", "director", "gitlab_reporter", "printer_")  # fixtures
 
 
-@pytest.fixture()
-def reporter(dispatcher: Dispatcher, console_: Console) -> GitlabReporterPlugin:
-    reporter = GitlabReporterPlugin(GitlabReporter, console_factory=lambda: console_)
-    reporter.subscribe(dispatcher)
-    return reporter
+async def test_subscribe(*, dispatcher: Dispatcher):
+    with given:
+        director_ = Mock(DirectorPlugin)
 
-
-@contextmanager
-def patch_uuid(uuid: Optional[str] = None):
-    if uuid is None:
-        uuid = str(uuid4())
-    with patch("uuid.uuid4", Mock(return_value=uuid)):
-        yield uuid
-
-
-def make_parsed_args(*,
-                     verbose: int = 0,
-                     gitlab_collapsable: Union[GitlabCollapsableMode, None] = None) -> Namespace:
-    return Namespace(
-        verbose=verbose,
-        gitlab_collapsable=gitlab_collapsable,
-        show_timings=False,
-        show_paths=False,
-        tb_show_internal_calls=False,
-        tb_show_locals=False,
-        reruns=0,
-    )
-
-
-def test_gitlab_reporter():
-    with when:
         reporter = GitlabReporterPlugin(GitlabReporter)
+        reporter.subscribe(dispatcher)
+
+    with when:
+        await dispatcher.fire(DirectorInitEvent(director_))
 
     with then:
-        assert isinstance(reporter, Reporter)
+        assert director_.mock_calls == [
+            call.register("gitlab", reporter)
+        ]
 
 
-@pytest.mark.asyncio
-async def test_reporter_scenario_run_event(*, dispatcher: Dispatcher,
-                                           director: DirectorPlugin,
-                                           reporter: GitlabReporterPlugin, console_: Mock):
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_startup(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
-        await chose_reporter(dispatcher, director, reporter)
+        await fire_arg_parsed_event(dispatcher)
+
+        scheduler = ScenarioScheduler([])
+        event = StartupEvent(scheduler)
+
+    with when:
+        await dispatcher.fire(event)
+
+    with then:
+        assert printer_.mock_calls == [
+            call.print_header()
+        ]
+
+
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_scenario_run(*, dispatcher: Dispatcher, printer_: Mock):
+    with given:
+        await fire_arg_parsed_event(dispatcher)
 
         scenario_result = make_scenario_result()
         event = ScenarioRunEvent(scenario_result)
@@ -76,103 +68,121 @@ async def test_reporter_scenario_run_event(*, dispatcher: Dispatcher,
         await dispatcher.fire(event)
 
     with then:
-        assert console_.mock_calls == [
-            call.out(f"* {scenario_result.scenario.namespace}", style=Style.parse("bold"))
-        ]
+        assert printer_.print_namespace.assert_called() is None
+        assert len(printer_.mock_calls) == 1
 
 
-@pytest.mark.parametrize("args", [
-    make_parsed_args(verbose=0),  # backward compatibility
-    make_parsed_args(gitlab_collapsable=None),
-])
-@pytest.mark.asyncio
-async def test_reporter_scenario_failed_event_verbose0(args: Namespace, *,
-                                                       dispatcher: Dispatcher,
-                                                       director: DirectorPlugin,
-                                                       reporter: GitlabReporterPlugin,
-                                                       console_: Mock):
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_scenario_run_same_namespace(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
-        await chose_reporter(dispatcher, director, reporter)
-        await dispatcher.fire(ArgParsedEvent(args))
+        await fire_arg_parsed_event(dispatcher)
 
-        scenario_result = make_scenario_result().mark_failed()
-        event = ScenarioFailedEvent(scenario_result)
+        scenario_result1 = make_scenario_result()
+        await dispatcher.fire(ScenarioRunEvent(scenario_result1))
+        printer_.reset_mock()
+
+        scenario_result2 = make_scenario_result()
+        event = ScenarioRunEvent(scenario_result2)
 
     with when:
         await dispatcher.fire(event)
 
     with then:
-        assert console_.mock_calls == [
-            call.out(f" ✗ {scenario_result.scenario.subject}", style=Style.parse("red"))
-        ]
+        assert printer_.print_namespace.assert_not_called() is None
+        assert len(printer_.mock_calls) == 0
 
 
-@pytest.mark.parametrize("args", [
-    make_parsed_args(verbose=1),  # backward compatibility
-    make_parsed_args(gitlab_collapsable=GitlabCollapsableMode.STEPS),
-])
-@pytest.mark.asyncio
-async def test_reporter_scenario_failed_event_verbose1(args: Namespace, *,
-                                                       dispatcher: Dispatcher,
-                                                       director: DirectorPlugin,
-                                                       reporter: GitlabReporterPlugin,
-                                                       console_: Mock):
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_scenario_passed(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
-        await chose_reporter(dispatcher, director, reporter)
-        await dispatcher.fire(ArgParsedEvent(args))
+        await fire_arg_parsed_event(dispatcher)
 
-        step_result = make_step_result().mark_failed().set_started_at(1.0).set_ended_at(3.0)
-        scenario_result = make_scenario_result(step_results=[step_result]).mark_failed()
-        event = ScenarioFailedEvent(scenario_result)
+        scenario_result = make_scenario_result().mark_passed()
+        aggregated_result = make_aggregated_result(scenario_result)
+        event = ScenarioReportedEvent(aggregated_result)
 
-    with when, patch_uuid() as uuid:
+    with when:
         await dispatcher.fire(event)
 
     with then:
-        assert console_.mock_calls == [
-            call.out(f" ✗ {scenario_result.scenario.subject}", style=Style.parse("red")),
-            call.file.write(f"\x1b[0Ksection_start:{int(step_result.started_at)}:{uuid}"
-                            "[collapsed=true]\r\x1b[0K"),
-            call.out(f"    ✗ {step_result.step_name}", style=Style.parse("red")),
-            call.file.write(f"\x1b[0Ksection_end:{int(step_result.ended_at)}:{uuid}\r\x1b[0K")
+        assert printer_.mock_calls == [
+            call.print_scenario_subject(aggregated_result.scenario.subject,
+                                        ScenarioStatus.PASSED,
+                                        elapsed=aggregated_result.elapsed,
+                                        prefix=" ")
         ]
 
 
-@pytest.mark.parametrize("args", [
-    make_parsed_args(verbose=2),  # backward compatibility
-    make_parsed_args(gitlab_collapsable=GitlabCollapsableMode.VARS),
-])
-@pytest.mark.asyncio
-async def test_reporter_scenario_failed_event_verbose2(args: Namespace, *,
-                                                       dispatcher: Dispatcher,
-                                                       director: DirectorPlugin,
-                                                       reporter: GitlabReporterPlugin,
-                                                       console_: Mock):
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_scenario_passed_aggregated_result(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
-        await chose_reporter(dispatcher, director, reporter)
-        await dispatcher.fire(ArgParsedEvent(args))
+        await fire_arg_parsed_event(dispatcher)
+
+        scenario_results = [
+            make_scenario_result().mark_passed(),
+            make_scenario_result().mark_passed(),
+        ]
+
+        aggregated_result = AggregatedResult.from_existing(scenario_results[0], scenario_results)
+        event = ScenarioReportedEvent(aggregated_result)
+
+    with when:
+        await dispatcher.fire(event)
+
+    with then:
+        assert printer_.mock_calls == [
+            call.print_scenario_subject(aggregated_result.scenario.subject,
+                                        ScenarioStatus.PASSED,
+                                        elapsed=None,
+                                        prefix=" "),
+
+            call.print_scenario_subject(aggregated_result.scenario_results[0].scenario.subject,
+                                        ScenarioStatus.PASSED,
+                                        elapsed=scenario_results[0].elapsed,
+                                        prefix=" │\n ├─[1/2] "),
+            call.print_scenario_subject(aggregated_result.scenario_results[1].scenario.subject,
+                                        ScenarioStatus.PASSED,
+                                        elapsed=scenario_results[1].elapsed,
+                                        prefix=" │\n ├─[2/2] "),
+
+            call.print_empty_line(),
+        ]
+
+
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_scenario_unknown_status(*, dispatcher: Dispatcher, printer_: Mock):
+    with given:
+        await fire_arg_parsed_event(dispatcher)
 
         scenario_result = make_scenario_result()
-        await dispatcher.fire(ScenarioRunEvent(scenario_result))
-        console_.reset_mock()
+        aggregated_result = make_aggregated_result(scenario_result)
+        event = ScenarioReportedEvent(aggregated_result)
 
-        scenario_result.set_scope({"key": "val"})
-        step_result = make_step_result().mark_failed()
-        await dispatcher.fire(StepFailedEvent(step_result))
-
-        scenario_result = scenario_result.mark_failed()
-        scenario_result.add_step_result(step_result)
-        event = ScenarioFailedEvent(scenario_result)
-
-    with when, patch_uuid() as uuid:
+    with when:
         await dispatcher.fire(event)
 
     with then:
-        assert console_.mock_calls == [
-            call.out(f" ✗ {scenario_result.scenario.subject}", style=Style.parse("red")),
-            call.out(f"    ✗ {step_result.step_name}", style=Style.parse("red")),
-            call.file.write(f"\x1b[0Ksection_start:0:{uuid}[collapsed=true]\r\x1b[0K"),
-            call.out("      key: ", style=Style.parse("blue")),
-            call.out("\"val\""),
-            call.file.write(f"\x1b[0Ksection_end:0:{uuid}\r\x1b[0K")
+        assert printer_.mock_calls == []
+
+
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_cleanup(*, dispatcher: Dispatcher, printer_: Mock):
+    with given:
+        await fire_arg_parsed_event(dispatcher)
+
+        report = Report()
+        event = CleanupEvent(report)
+
+    with when:
+        await dispatcher.fire(event)
+
+    with then:
+        assert printer_.mock_calls == [
+            call.print_empty_line(),
+            call.print_report_summary(report.summary),
+            call.print_report_stats(total=report.total,
+                                    passed=report.passed,
+                                    failed=report.failed,
+                                    skipped=report.skipped,
+                                    elapsed=report.elapsed)
         ]
