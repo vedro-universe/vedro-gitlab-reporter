@@ -19,7 +19,7 @@ from vedro.core import (
     VirtualScenario,
     VirtualStep,
 )
-from vedro.events import ArgParsedEvent, ArgParseEvent, ConfigLoadedEvent
+from vedro.events import ArgParsedEvent, ArgParseEvent, ConfigLoadedEvent, ScenarioRunEvent
 from vedro.plugins.director import Director, DirectorPlugin
 from vedro.plugins.director.rich import RichPrinter
 
@@ -67,6 +67,16 @@ async def fire_arg_parsed_event(dispatcher: Dispatcher, *,
                           gitlab_tb_show_locals=tb_show_locals)
     arg_parsed_event = ArgParsedEvent(namespace)
     await dispatcher.fire(arg_parsed_event)
+
+
+async def fire_scenario_run_event(dispatcher: Dispatcher,
+                                  scenario_result: Optional[ScenarioResult] = None
+                                  ) -> ScenarioResult:
+    if scenario_result is None:
+        scenario_result = make_scenario_result()
+    scenario_run_event = ScenarioRunEvent(scenario_result)
+    await dispatcher.fire(scenario_run_event)
+    return scenario_result
 
 
 def make_vstep(name: Optional[str] = None) -> VirtualStep:

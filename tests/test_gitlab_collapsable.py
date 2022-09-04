@@ -11,9 +11,9 @@ from ._utils import (
     director,
     dispatcher,
     fire_arg_parsed_event,
+    fire_scenario_run_event,
     gitlab_reporter,
     make_aggregated_result,
-    make_scenario_result,
     make_step_result,
     patch_uuid,
     printer_,
@@ -26,17 +26,17 @@ __all__ = ("dispatcher", "director", "gitlab_reporter", "printer_")  # fixtures
 async def test_collapsable_steps(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
         await fire_arg_parsed_event(dispatcher, collapsable_mode=GitlabCollapsableMode.STEPS)
-
-        scenario_result = make_scenario_result().mark_failed()
+        scenario_result = await fire_scenario_run_event(dispatcher)
+        scenario_result.set_scope({"key": "val"})
 
         step_result = make_step_result().mark_failed().set_started_at(1.0).set_ended_at(3.0)
         await dispatcher.fire(StepFailedEvent(step_result))
-        scenario_result.set_scope({"key": "val"})
         scenario_result.add_step_result(step_result)
 
-        aggregated_result = make_aggregated_result(scenario_result)
+        aggregated_result = make_aggregated_result(scenario_result.mark_failed())
         event = ScenarioReportedEvent(aggregated_result)
 
+        printer_.reset_mock()
         printer_.pretty_format = lambda self: "'val'"
 
     with when, patch_uuid() as uuid:
@@ -66,17 +66,17 @@ async def test_collapsable_steps(*, dispatcher: Dispatcher, printer_: Mock):
 async def test_collapsable_vars(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
         await fire_arg_parsed_event(dispatcher, collapsable_mode=GitlabCollapsableMode.VARS)
-
-        scenario_result = make_scenario_result().mark_failed()
+        scenario_result = await fire_scenario_run_event(dispatcher)
+        scenario_result.set_scope({"key": "val"})
 
         step_result = make_step_result().mark_failed().set_started_at(1.0).set_ended_at(3.0)
         await dispatcher.fire(StepFailedEvent(step_result))
-        scenario_result.set_scope({"key": "val"})
         scenario_result.add_step_result(step_result)
 
-        aggregated_result = make_aggregated_result(scenario_result)
+        aggregated_result = make_aggregated_result(scenario_result.mark_failed())
         event = ScenarioReportedEvent(aggregated_result)
 
+        printer_.reset_mock()
         printer_.pretty_format = lambda self: "'val'"
 
     with when, patch_uuid() as uuid:
@@ -105,17 +105,17 @@ async def test_collapsable_vars(*, dispatcher: Dispatcher, printer_: Mock):
 async def test_collapsable_scope(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
         await fire_arg_parsed_event(dispatcher, collapsable_mode=GitlabCollapsableMode.SCOPE)
-
-        scenario_result = make_scenario_result().mark_failed()
+        scenario_result = await fire_scenario_run_event(dispatcher)
+        scenario_result.set_scope({"key": "val"})
 
         step_result = make_step_result().mark_failed().set_started_at(1.0).set_ended_at(3.0)
         await dispatcher.fire(StepFailedEvent(step_result))
-        scope = {"key": "val"}
-        scenario_result.set_scope(scope)
         scenario_result.add_step_result(step_result)
 
-        aggregated_result = make_aggregated_result(scenario_result)
+        aggregated_result = make_aggregated_result(scenario_result.mark_failed())
         event = ScenarioReportedEvent(aggregated_result)
+
+        printer_.reset_mock()
 
     with when, patch_uuid() as uuid:
         await dispatcher.fire(event)
@@ -132,6 +132,6 @@ async def test_collapsable_scope(*, dispatcher: Dispatcher, printer_: Mock):
                                  prefix=" " * 3),
 
             call.console.file.write(f"\x1b[0Ksection_start:0:{uuid}[collapsed=true]\r\x1b[0K"),
-            call.print_scope(scope),
+            call.print_scope(scenario_result.scope),
             call.console.file.write(f"\x1b[0Ksection_end:0:{uuid}\r\x1b[0K"),
         ]

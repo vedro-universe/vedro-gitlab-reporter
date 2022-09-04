@@ -1,5 +1,7 @@
+import operator
 import uuid
-from typing import Callable, Type, Union
+from functools import reduce
+from typing import Callable, Dict, Set, Type, Union
 
 from vedro.core import Dispatcher, PluginConfig, ScenarioResult
 from vedro.events import (
@@ -9,6 +11,8 @@ from vedro.events import (
     ScenarioReportedEvent,
     ScenarioRunEvent,
     StartupEvent,
+    StepFailedEvent,
+    StepPassedEvent,
 )
 from vedro.plugins.director import DirectorInitEvent, Reporter
 from vedro.plugins.director.rich import RichPrinter
@@ -23,11 +27,15 @@ class GitlabReporterPlugin(Reporter):
                  printer_factory: Callable[[], RichPrinter] = RichPrinter) -> None:
         super().__init__(config)
         self._printer = printer_factory()
+
         self._tb_show_internal_calls = config.tb_show_internal_calls
         self._tb_show_locals = config.tb_show_locals
         self._tb_max_frames = config.tb_max_frames
         self._collapsable_mode: Union[GitlabCollapsableMode, None] = None
+
         self._namespace: Union[str, None] = None
+        self._scenario_result: Union[ScenarioResult, None] = None
+        self._scenario_steps: Dict[str, Set[str]] = {}
 
     def subscribe(self, dispatcher: Dispatcher) -> None:
         super().subscribe(dispatcher)
@@ -39,6 +47,8 @@ class GitlabReporterPlugin(Reporter):
                         .listen(ArgParsedEvent, self.on_arg_parsed) \
                         .listen(StartupEvent, self.on_startup) \
                         .listen(ScenarioRunEvent, self.on_scenario_run) \
+                        .listen(StepPassedEvent, self.on_step_end) \
+                        .listen(StepFailedEvent, self.on_step_end) \
                         .listen(ScenarioReportedEvent, self.on_scenario_reported) \
                         .listen(CleanupEvent, self.on_cleanup)
 
@@ -72,6 +82,16 @@ class GitlabReporterPlugin(Reporter):
             self._namespace = namespace
             self._printer.print_namespace(namespace)
 
+        self._scenario_result = event.scenario_result
+        self._scenario_steps = {}
+
+    def on_step_end(self, event: Union[StepPassedEvent, StepFailedEvent]) -> None:
+        assert isinstance(self._scenario_result, ScenarioResult)
+
+        step_scope: Set[str] = set(self._scenario_result.scope.keys())
+        prev_scope: Set[str] = reduce(operator.or_, self._scenario_steps.values(), set())
+        self._scenario_steps[event.step_result.step_name] = step_scope - prev_scope
+
     def _print_scenario_result(self, scenario_result: ScenarioResult, *, prefix: str = "") -> None:
         if scenario_result.is_passed():
             self._print_scenario_passed(scenario_result, prefix=prefix)
@@ -101,7 +121,8 @@ class GitlabReporterPlugin(Reporter):
             self._print_exceptions(scenario_result)
 
         elif self._collapsable_mode == GitlabCollapsableMode.SCOPE:
-            self._print_steps(scenario_result, prefix=self._prefix_to_indent(prefix, indent=2))
+            prefix = self._prefix_to_indent(prefix, indent=2)
+            self._print_steps(scenario_result, prefix=prefix)
             self._print_exceptions(scenario_result)
             self._print_collapsable_scope(scenario_result)
 
@@ -159,7 +180,8 @@ class GitlabReporterPlugin(Reporter):
                                           elapsed=step_result.elapsed, prefix=prefix)
 
             for key, val in scenario_result.scope.items():
-                # if key in step
+                if key not in self._scenario_steps[step_result.step_name]:
+                    continue
                 self._printer.print_scope_key(key, indent=len(prefix) + 2, line_break=True)
                 self._printer.print_scope_val(self._printer.pretty_format(val))
 
@@ -173,7 +195,8 @@ class GitlabReporterPlugin(Reporter):
                                           elapsed=step_result.elapsed, prefix=prefix)
 
             for key, val in scenario_result.scope.items():
-                # if key in step
+                if key not in self._scenario_steps[step_result.step_name]:
+                    continue
                 section_name = str(uuid.uuid4())
                 self._print_section_start(section_name)
 
