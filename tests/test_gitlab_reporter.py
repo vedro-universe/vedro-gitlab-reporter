@@ -114,6 +114,27 @@ async def test_scenario_passed(*, dispatcher: Dispatcher, printer_: Mock):
 
 
 @pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_scenario_failed(*, dispatcher: Dispatcher, printer_: Mock):
+    with given:
+        await fire_arg_parsed_event(dispatcher)
+
+        scenario_result = make_scenario_result().mark_failed()
+        aggregated_result = make_aggregated_result(scenario_result)
+        event = ScenarioReportedEvent(aggregated_result)
+
+    with when:
+        await dispatcher.fire(event)
+
+    with then:
+        assert printer_.mock_calls == [
+            call.print_scenario_subject(aggregated_result.scenario.subject,
+                                        ScenarioStatus.FAILED,
+                                        elapsed=aggregated_result.elapsed,
+                                        prefix=" ")
+        ]
+
+
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
 async def test_scenario_passed_aggregated_result(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
         await fire_arg_parsed_event(dispatcher)

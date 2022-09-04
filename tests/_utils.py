@@ -1,10 +1,12 @@
 import sys
 from argparse import ArgumentParser, Namespace
+from contextlib import contextmanager
 from pathlib import Path
 from time import monotonic_ns
 from types import TracebackType
 from typing import Optional, Union, cast
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+from uuid import uuid4
 
 import pytest
 from vedro import Config, Scenario
@@ -101,3 +103,11 @@ def make_exc_info(exc_val: Exception) -> ExcInfo:
     except type(exc_val):
         *_, traceback = sys.exc_info()
     return ExcInfo(type(exc_val), exc_val, cast(TracebackType, traceback))
+
+
+@contextmanager
+def patch_uuid(uuid: Optional[str] = None):
+    if uuid is None:
+        uuid = str(uuid4())
+    with patch("uuid.uuid4", Mock(return_value=uuid)):
+        yield uuid

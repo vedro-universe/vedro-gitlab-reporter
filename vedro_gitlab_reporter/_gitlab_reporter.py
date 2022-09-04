@@ -1,4 +1,4 @@
-from enum import Enum
+import uuid
 from typing import Callable, Type, Union
 
 from vedro.core import Dispatcher, PluginConfig, ScenarioResult
@@ -13,16 +13,9 @@ from vedro.events import (
 from vedro.plugins.director import DirectorInitEvent, Reporter
 from vedro.plugins.director.rich import RichPrinter
 
-__all__ = ("GitlabReporter", "GitlabReporterPlugin", "GitlabCollapsableMode",)
+from ._collapsable_mode import GitlabCollapsableMode
 
-
-class GitlabCollapsableMode(Enum):
-    STEPS = "steps"
-    VARS = "vars"
-    SCOPE = "scope"
-
-    def __str__(self) -> str:
-        return self.value
+__all__ = ("GitlabReporter", "GitlabReporterPlugin",)
 
 
 class GitlabReporterPlugin(Reporter):
@@ -79,33 +72,38 @@ class GitlabReporterPlugin(Reporter):
             self._namespace = namespace
             self._printer.print_namespace(namespace)
 
-    def _print_scenario_passed(self, scenario_result: ScenarioResult, *, prefix: str = "") -> None:
-        self._printer.print_scenario_subject(scenario_result.scenario.subject,
-                                             scenario_result.status,
-                                             elapsed=scenario_result.elapsed,
-                                             prefix=prefix)
-
     def _print_scenario_result(self, scenario_result: ScenarioResult, *, prefix: str = "") -> None:
         if scenario_result.is_passed():
             self._print_scenario_passed(scenario_result, prefix=prefix)
         elif scenario_result.is_failed():
             self._print_scenario_failed(scenario_result, prefix=prefix)
 
-    def _print_section_start(self, name: str, started_at: int = 0, *,
-                             is_collapsed: bool = True) -> None:
-        collapsed = "true" if is_collapsed else "false"
-        output = f'\033[0Ksection_start:{started_at}:{name}[collapsed={collapsed}]\r\033[0K'
-        self._printer.console.file.write(output)
-
-    def _print_section_end(self, name: str, ended_at: int = 0) -> None:
-        output = f'\033[0Ksection_end:{ended_at}:{name}\r\033[0K'
-        self._printer.console.file.write(output)
+    def _print_scenario_passed(self, scenario_result: ScenarioResult, *, prefix: str = "") -> None:
+        self._printer.print_scenario_subject(scenario_result.scenario.subject,
+                                             scenario_result.status,
+                                             elapsed=scenario_result.elapsed,
+                                             prefix=prefix)
 
     def _print_scenario_failed(self, scenario_result: ScenarioResult, *, prefix: str = "") -> None:
         self._printer.print_scenario_subject(scenario_result.scenario.subject,
                                              scenario_result.status,
                                              elapsed=scenario_result.elapsed,
                                              prefix=prefix)
+
+        if self._collapsable_mode == GitlabCollapsableMode.STEPS:
+            prefix = self._prefix_to_indent(prefix, indent=2)
+            self._print_collapsable_steps(scenario_result, prefix=prefix)
+            self._print_exceptions(scenario_result)
+
+        elif self._collapsable_mode == GitlabCollapsableMode.VARS:
+            prefix = self._prefix_to_indent(prefix, indent=2)
+            self._print_steps_with_collapsable_vars(scenario_result, prefix=prefix)
+            self._print_exceptions(scenario_result)
+
+        elif self._collapsable_mode == GitlabCollapsableMode.SCOPE:
+            self._print_steps(scenario_result, prefix=self._prefix_to_indent(prefix, indent=2))
+            self._print_exceptions(scenario_result)
+            self._print_collapsable_scope(scenario_result)
 
     def on_scenario_reported(self, event: ScenarioReportedEvent) -> None:
         aggregated_result = event.aggregated_result
@@ -131,6 +129,74 @@ class GitlabReporterPlugin(Reporter):
                                          skipped=event.report.skipped,
                                          elapsed=event.report.elapsed)
 
+    def _print_section_start(self, name: str, started_at: int = 0, *,
+                             is_collapsed: bool = True) -> None:
+        collapsed = "true" if is_collapsed else "false"
+        output = f'\033[0Ksection_start:{started_at}:{name}[collapsed={collapsed}]\r\033[0K'
+        self._printer.console.file.write(output)
+
+    def _print_section_end(self, name: str, ended_at: int = 0) -> None:
+        output = f'\033[0Ksection_end:{ended_at}:{name}\r\033[0K'
+        self._printer.console.file.write(output)
+
+    def _prefix_to_indent(self, prefix: str, indent: int = 0) -> str:
+        last_line = prefix.split("\n")[-1]
+        return (len(last_line) + indent) * " "
+
+    def _print_steps(self, scenario_result: ScenarioResult, *, prefix: str = "") -> None:
+        for step_result in scenario_result.step_results:
+            self._printer.print_step_name(step_result.step_name, step_result.status,
+                                          elapsed=step_result.elapsed, prefix=prefix)
+
+    def _print_collapsable_steps(self, scenario_result: ScenarioResult, *,
+                                 prefix: str = "") -> None:
+        for step_result in scenario_result.step_results:
+            section_name = str(uuid.uuid4())
+            started_at = int(step_result.started_at) if step_result.started_at else 0
+            self._print_section_start(section_name, started_at)
+
+            self._printer.print_step_name(step_result.step_name, step_result.status,
+                                          elapsed=step_result.elapsed, prefix=prefix)
+
+            for key, val in scenario_result.scope.items():
+                # if key in step
+                self._printer.print_scope_key(key)
+                self._printer.print_scope_val(val)
+
+            ended_at = int(step_result.ended_at) if step_result.ended_at else 0
+            self._print_section_end(section_name, ended_at)
+
+    def _print_steps_with_collapsable_vars(self, scenario_result: ScenarioResult, *,
+                                           prefix: str = "") -> None:
+        for step_result in scenario_result.step_results:
+            self._printer.print_step_name(step_result.step_name, step_result.status,
+                                          elapsed=step_result.elapsed, prefix=prefix)
+
+            for key, val in scenario_result.scope.items():
+                # if key in step
+                section_name = str(uuid.uuid4())
+                self._print_section_start(section_name)
+
+                self._printer.print_scope_key(key)
+                self._printer.print_scope_val(val)
+
+                self._print_section_end(section_name)
+
+    def _print_exceptions(self, scenario_result: ScenarioResult) -> None:
+        for step_result in scenario_result.step_results:
+            if step_result.exc_info is None:
+                continue
+            self._printer.print_pretty_exception(step_result.exc_info,
+                                                 max_frames=self._tb_max_frames,
+                                                 show_locals=self._tb_show_locals,
+                                                 show_internal_calls=self._tb_show_internal_calls)
+
+    def _print_collapsable_scope(self, scenario_result: ScenarioResult) -> None:
+        section_name = str(uuid.uuid4())
+        self._print_section_start(section_name)
+        self._printer.print_scope(scenario_result.scope)
+        self._print_section_end(section_name)
+
 
 class GitlabReporter(PluginConfig):
     plugin = GitlabReporterPlugin
@@ -139,7 +205,6 @@ class GitlabReporter(PluginConfig):
     tb_show_internal_calls: bool = False
 
     # Show local variables in the traceback output
-    # Available if tb_pretty is True
     tb_show_locals: bool = False
 
     # Max stack trace entries to show (min=4)
