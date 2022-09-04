@@ -25,7 +25,7 @@ __all__ = ("dispatcher", "director", "gitlab_reporter", "printer_")  # fixtures
 @pytest.mark.usefixtures(gitlab_reporter.__name__)
 async def test_collapsable_steps(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
-        await fire_arg_parsed_event(dispatcher, gitlab_collapsable=GitlabCollapsableMode.STEPS)
+        await fire_arg_parsed_event(dispatcher, collapsable_mode=GitlabCollapsableMode.STEPS)
 
         scenario_result = make_scenario_result().mark_failed()
 
@@ -66,7 +66,7 @@ async def test_collapsable_steps(*, dispatcher: Dispatcher, printer_: Mock):
 @pytest.mark.usefixtures(gitlab_reporter.__name__)
 async def test_collapsable_vars(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
-        await fire_arg_parsed_event(dispatcher, gitlab_collapsable=GitlabCollapsableMode.VARS)
+        await fire_arg_parsed_event(dispatcher, collapsable_mode=GitlabCollapsableMode.VARS)
 
         scenario_result = make_scenario_result().mark_failed()
 
@@ -106,7 +106,7 @@ async def test_collapsable_vars(*, dispatcher: Dispatcher, printer_: Mock):
 @pytest.mark.usefixtures(gitlab_reporter.__name__)
 async def test_collapsable_scope(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
-        await fire_arg_parsed_event(dispatcher, gitlab_collapsable=GitlabCollapsableMode.SCOPE)
+        await fire_arg_parsed_event(dispatcher, collapsable_mode=GitlabCollapsableMode.SCOPE)
 
         scenario_result = make_scenario_result().mark_failed()
 

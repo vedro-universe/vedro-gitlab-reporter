@@ -52,7 +52,7 @@ def gitlab_reporter(dispatcher: Dispatcher,
 
 
 async def fire_arg_parsed_event(dispatcher: Dispatcher, *,
-                                gitlab_collapsable: Union[GitlabCollapsableMode, None] = None,
+                                collapsable_mode: Union[GitlabCollapsableMode, None] = None,
                                 tb_show_internal_calls: bool =
                                 GitlabReporter.tb_show_internal_calls,
                                 tb_show_locals: bool =
@@ -62,9 +62,9 @@ async def fire_arg_parsed_event(dispatcher: Dispatcher, *,
     arg_parse_event = ArgParseEvent(ArgumentParser())
     await dispatcher.fire(arg_parse_event)
 
-    namespace = Namespace(gitlab_collapsable=gitlab_collapsable,
-                          tb_show_internal_calls=tb_show_internal_calls,
-                          tb_show_locals=tb_show_locals)
+    namespace = Namespace(gitlab_collapsable=collapsable_mode,
+                          gitlab_tb_show_internal_calls=tb_show_internal_calls,
+                          gitlab_tb_show_locals=tb_show_locals)
     arg_parsed_event = ArgParsedEvent(namespace)
     await dispatcher.fire(arg_parsed_event)
 

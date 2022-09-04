@@ -49,19 +49,19 @@ class GitlabReporterPlugin(Reporter):
                            type=GitlabCollapsableMode,
                            choices=[x for x in GitlabCollapsableMode],
                            help="Choose collapsable mode")
-        group.add_argument("--tb-show-internal-calls",
+        group.add_argument("--gitlab-tb-show-internal-calls",
                            action="store_true",
                            default=self._tb_show_internal_calls,
                            help="Show internal calls in the traceback output")
-        group.add_argument("--tb-show-locals",
+        group.add_argument("--gitlab-tb-show-locals",
                            action="store_true",
                            default=self._tb_show_locals,
                            help="Show local variables in the traceback output")
 
     def on_arg_parsed(self, event: ArgParsedEvent) -> None:
         self._collapsable_mode = event.args.gitlab_collapsable
-        self._tb_show_internal_calls = event.args.tb_show_internal_calls
-        self._tb_show_locals = event.args.tb_show_locals
+        self._tb_show_internal_calls = event.args.gitlab_tb_show_internal_calls
+        self._tb_show_locals = event.args.gitlab_tb_show_locals
 
     def on_startup(self, event: StartupEvent) -> None:
         self._printer.print_header()
