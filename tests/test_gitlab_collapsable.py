@@ -38,6 +38,8 @@ async def test_collapsable_steps(*, dispatcher: Dispatcher, printer_: Mock):
         aggregated_result = make_aggregated_result(scenario_result)
         event = ScenarioReportedEvent(aggregated_result)
 
+        printer_.pretty_format = lambda self: "'val'"
+
     with when, patch_uuid() as uuid:
         await dispatcher.fire(event)
 
@@ -55,8 +57,8 @@ async def test_collapsable_steps(*, dispatcher: Dispatcher, printer_: Mock):
                                  StepStatus.FAILED,
                                  elapsed=step_result.elapsed,
                                  prefix=" " * 3),
-            call.print_scope_key("key"),
-            call.print_scope_val("val"),
+            call.print_scope_key("key", indent=5, line_break=True),
+            call.print_scope_val("'val'"),
             call.console.file.write(f"\x1b[0Ksection_end:{section_end}:{uuid}\r\x1b[0K"),
         ]
 
@@ -77,6 +79,8 @@ async def test_collapsable_vars(*, dispatcher: Dispatcher, printer_: Mock):
         aggregated_result = make_aggregated_result(scenario_result)
         event = ScenarioReportedEvent(aggregated_result)
 
+        printer_.pretty_format = lambda self: "'val'"
+
     with when, patch_uuid() as uuid:
         await dispatcher.fire(event)
 
@@ -93,8 +97,8 @@ async def test_collapsable_vars(*, dispatcher: Dispatcher, printer_: Mock):
                                  prefix=" " * 3),
 
             call.console.file.write(f"\x1b[0Ksection_start:0:{uuid}[collapsed=true]\r\x1b[0K"),
-            call.print_scope_key("key"),
-            call.print_scope_val("val"),
+            call.print_scope_key("key", indent=5, line_break=True),
+            call.print_scope_val("'val'"),
             call.console.file.write(f"\x1b[0Ksection_end:0:{uuid}\r\x1b[0K"),
         ]
 

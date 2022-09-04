@@ -160,8 +160,8 @@ class GitlabReporterPlugin(Reporter):
 
             for key, val in scenario_result.scope.items():
                 # if key in step
-                self._printer.print_scope_key(key)
-                self._printer.print_scope_val(val)
+                self._printer.print_scope_key(key, indent=len(prefix) + 2, line_break=True)
+                self._printer.print_scope_val(self._printer.pretty_format(val))
 
             ended_at = int(step_result.ended_at) if step_result.ended_at else 0
             self._print_section_end(section_name, ended_at)
@@ -177,8 +177,8 @@ class GitlabReporterPlugin(Reporter):
                 section_name = str(uuid.uuid4())
                 self._print_section_start(section_name)
 
-                self._printer.print_scope_key(key)
-                self._printer.print_scope_val(val)
+                self._printer.print_scope_key(key, indent=len(prefix) + 2, line_break=True)
+                self._printer.print_scope_val(self._printer.pretty_format(val))
 
                 self._print_section_end(section_name)
 
