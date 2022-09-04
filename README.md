@@ -20,13 +20,13 @@ $ pip3 install vedro-gitlab-reporter
 ```python
 # ./vedro.cfg.py
 import vedro
-import vedro_gitlab_reporter as v
+import vedro_gitlab_reporter as gitlab_reporter
 
 class Config(vedro.Config):
 
     class Plugins(vedro.Config.Plugins):
 
-        class GitlabReporter(v.GitlabReporter):
+        class GitlabReporter(gitlab_reporter.GitlabReporter):
             enabled = True
 ```
 
