@@ -1,6 +1,6 @@
 # Vedro GitLab Reporter
 
-[![Codecov](https://img.shields.io/codecov/c/github/nikitanovosibirsk/vedro-gitlab-reporter/master.svg?style=flat-square)](https://codecov.io/gh/nikitanovosibirsk/vedro-gitlab-reporter)
+[![Codecov](https://img.shields.io/codecov/c/github/vedro-universe/vedro-gitlab-reporter/master.svg?style=flat-square)](https://codecov.io/gh/vedro-universe/vedro-gitlab-reporter)
 [![PyPI](https://img.shields.io/pypi/v/vedro-gitlab-reporter.svg?style=flat-square)](https://pypi.python.org/pypi/vedro-gitlab-reporter/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/vedro-gitlab-reporter?style=flat-square)](https://pypi.python.org/pypi/vedro-gitlab-reporter/)
 [![Python Version](https://img.shields.io/pypi/pyversions/vedro-gitlab-reporter.svg?style=flat-square)](https://pypi.python.org/pypi/vedro-gitlab-reporter/)
@@ -9,26 +9,48 @@ GitLab (>=12.0) reporter with [collapsable sections](https://docs.gitlab.com/ee/
 
 ## Installation
 
-### 1. Install package
+<details open>
+<summary>Quick</summary>
+<p>
+
+For a quick installation, you can use a plugin manager as follows:
+
+```shell
+$ vedro plugin install vedro-gitlab-reporter
+```
+
+</p>
+</details>
+
+<details>
+<summary>Manual</summary>
+<p>
+
+To install manually, follow these steps:
+
+1. Install the package using pip:
 
 ```shell
 $ pip3 install vedro-gitlab-reporter
 ```
 
-### 2. Enable plugin
+2. Next, activate the plugin in your `vedro.cfg.py` configuration file:
 
 ```python
 # ./vedro.cfg.py
 import vedro
-import vedro_gitlab_reporter as gitlab_reporter
+import vedro_gitlab_reporter
 
 class Config(vedro.Config):
 
     class Plugins(vedro.Config.Plugins):
 
-        class GitlabReporter(gitlab_reporter.GitlabReporter):
+        class GitlabReporter(vedro_gitlab_reporter.GitlabReporter):
             enabled = True
 ```
+
+</p>
+</details>
 
 ## Usage
 
