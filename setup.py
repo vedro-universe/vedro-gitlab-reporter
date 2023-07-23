@@ -21,6 +21,10 @@ setup(
     author_email="tsv1@fastmail.com",
     python_requires=">=3.7",
     url="https://github.com/vedro-universe/vedro-gitlab-reporter",
+    project_urls={
+        "Docs": "https://vedro.io/docs/integrations/gitlab-reporter",
+        "GitHub": "https://github.com/vedro-universe/vedro-gitlab-reporter",
+    },
     license="Apache-2.0",
     packages=find_packages(exclude=["tests", "tests.*"]),
     package_data={"vedro_gitlab_reporter": ["py.typed"]},
