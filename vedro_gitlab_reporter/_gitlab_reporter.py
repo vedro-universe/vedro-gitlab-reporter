@@ -1,8 +1,9 @@
 import operator
 import uuid
 from functools import reduce
-from typing import Callable, Dict, List, Set, Type, Union
+from typing import Any, Callable, Dict, List, Set, Type, Union
 
+import vedro
 from vedro.core import Dispatcher, PluginConfig, ScenarioResult
 from vedro.events import (
     ArgParsedEvent,
@@ -191,7 +192,7 @@ class GitlabReporterPlugin(Reporter):
                 if key not in scenario_steps[step_result.step_name]:
                     continue
                 self._printer.print_scope_key(key, indent=len(prefix) + 2, line_break=True)
-                self._printer.print_scope_val(self._printer.pretty_format(val))
+                self._print_scope_val(val)
 
             ended_at = int(step_result.ended_at) if step_result.ended_at else 0
             self._print_section_end(section_name, ended_at)
@@ -210,7 +211,7 @@ class GitlabReporterPlugin(Reporter):
                 self._print_section_start(section_name)
 
                 self._printer.print_scope_key(key, indent=len(prefix) + 2, line_break=True)
-                self._printer.print_scope_val(self._printer.pretty_format(val))
+                self._print_scope_val(val)
 
                 self._print_section_end(section_name)
 
@@ -228,6 +229,13 @@ class GitlabReporterPlugin(Reporter):
         self._print_section_start(section_name)
         self._printer.print_scope(scenario_result.scope)
         self._print_section_end(section_name)
+
+    def _print_scope_val(self, val: Any) -> None:
+        major, minor, *_ = vedro.__version__.split(".")
+        if (int(major), int(minor)) < (1, 10):
+            self._printer.print_scope_val(self._printer.pretty_format(val))
+        else:
+            self._printer.print_scope_val(val)
 
 
 class GitlabReporter(PluginConfig):
