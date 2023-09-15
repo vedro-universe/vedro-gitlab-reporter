@@ -110,6 +110,8 @@ class GitlabReporterPlugin(Reporter):
                                              scenario_result.status,
                                              elapsed=scenario_result.elapsed,
                                              prefix=prefix)
+        self._printer.print_scenario_extra_details(scenario_result.extra_details,
+                                                   prefix=prefix)
 
     def _print_scenario_failed(self, scenario_result: ScenarioResult, *,
                                index: int = 0, prefix: str = "") -> None:
@@ -117,6 +119,8 @@ class GitlabReporterPlugin(Reporter):
                                              scenario_result.status,
                                              elapsed=scenario_result.elapsed,
                                              prefix=prefix)
+        self._printer.print_scenario_extra_details(scenario_result.extra_details,
+                                                   prefix=prefix)
 
         if self._collapsable_mode == GitlabCollapsableMode.STEPS:
             prefix = self._prefix_to_indent(prefix, indent=2)
