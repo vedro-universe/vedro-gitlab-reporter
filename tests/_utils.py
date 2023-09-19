@@ -97,8 +97,12 @@ def make_step_result(vstep: Optional[VirtualStep] = None) -> StepResult:
     return StepResult(vstep or make_vstep())
 
 
-def make_scenario_result(vscenario: Optional[VirtualScenario] = None) -> ScenarioResult:
-    return ScenarioResult(vscenario or make_vscenario())
+def make_scenario_result(vscenario: Optional[VirtualScenario] = None,
+                         extra_details: str = None) -> ScenarioResult:
+    scenario_result = ScenarioResult(vscenario or make_vscenario())
+    if extra_details:
+        scenario_result.add_extra_details(extra_details)
+    return scenario_result
 
 
 def make_aggregated_result(scenario_result: Optional[ScenarioResult] = None) -> AggregatedResult:

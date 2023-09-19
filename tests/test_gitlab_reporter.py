@@ -114,6 +114,54 @@ async def test_scenario_passed(*, dispatcher: Dispatcher, printer_: Mock):
 
 
 @pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_scenario_passed_with_extra_details(*, dispatcher: Dispatcher, printer_: Mock):
+    with given:
+        await fire_arg_parsed_event(dispatcher)
+
+        extra_details = '<details>'
+        scenario_result = make_scenario_result(extra_details=extra_details).mark_passed()
+        aggregated_result = make_aggregated_result(scenario_result)
+        event = ScenarioReportedEvent(aggregated_result)
+
+    with when:
+        await dispatcher.fire(event)
+
+    with then:
+        assert printer_.mock_calls == [
+            call.print_scenario_subject(aggregated_result.scenario.subject,
+                                        ScenarioStatus.PASSED,
+                                        elapsed=aggregated_result.elapsed,
+                                        prefix=" "),
+            call.print_scenario_extra_details([extra_details],
+                                              prefix="   ")
+        ]
+
+
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_scenario_failed_with_extra_details(*, dispatcher: Dispatcher, printer_: Mock):
+    with given:
+        await fire_arg_parsed_event(dispatcher)
+
+        extra_details = '<details>'
+        scenario_result = make_scenario_result(extra_details=extra_details).mark_failed()
+        aggregated_result = make_aggregated_result(scenario_result)
+        event = ScenarioReportedEvent(aggregated_result)
+
+    with when:
+        await dispatcher.fire(event)
+
+    with then:
+        assert printer_.mock_calls == [
+            call.print_scenario_subject(aggregated_result.scenario.subject,
+                                        ScenarioStatus.FAILED,
+                                        elapsed=aggregated_result.elapsed,
+                                        prefix=" "),
+            call.print_scenario_extra_details([extra_details],
+                                              prefix="   ")
+        ]
+
+
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
 async def test_scenario_failed(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
         await fire_arg_parsed_event(dispatcher)
@@ -165,6 +213,49 @@ async def test_scenario_passed_aggregated_result(*, dispatcher: Dispatcher, prin
                                         ScenarioStatus.PASSED,
                                         elapsed=scenario_results[1].elapsed,
                                         prefix=" │\n ├─[2/2] "),
+
+            call.print_empty_line(),
+        ]
+
+
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_scenario_passed_aggregated_result_with_extra_details(*, dispatcher: Dispatcher,
+                                                                    printer_: Mock):
+    with given:
+        await fire_arg_parsed_event(dispatcher)
+
+        extra_details_1 = '<details1>'
+        extra_details_2 = '<details2>'
+        scenario_results = [
+            make_scenario_result(extra_details=extra_details_1).mark_passed(),
+            make_scenario_result(extra_details=extra_details_2).mark_passed(),
+        ]
+
+        aggregated_result = AggregatedResult.from_existing(scenario_results[0], scenario_results)
+        event = ScenarioReportedEvent(aggregated_result)
+
+    with when:
+        await dispatcher.fire(event)
+
+    with then:
+        assert printer_.mock_calls == [
+            call.print_scenario_subject(aggregated_result.scenario.subject,
+                                        ScenarioStatus.PASSED,
+                                        elapsed=None,
+                                        prefix=" "),
+
+            call.print_scenario_subject(aggregated_result.scenario_results[0].scenario.subject,
+                                        ScenarioStatus.PASSED,
+                                        elapsed=scenario_results[0].elapsed,
+                                        prefix=" │\n ├─[1/2] "),
+            call.print_scenario_extra_details([extra_details_1],
+                                              prefix="           "),
+            call.print_scenario_subject(aggregated_result.scenario_results[1].scenario.subject,
+                                        ScenarioStatus.PASSED,
+                                        elapsed=scenario_results[1].elapsed,
+                                        prefix=" │\n ├─[2/2] "),
+            call.print_scenario_extra_details([extra_details_2],
+                                              prefix="           "),
 
             call.print_empty_line(),
         ]
