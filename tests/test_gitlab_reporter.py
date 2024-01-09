@@ -5,7 +5,14 @@ from baby_steps import given, then, when
 from vedro.core import AggregatedResult, Dispatcher
 from vedro.core import MonotonicScenarioScheduler as ScenarioScheduler
 from vedro.core import Report, ScenarioStatus
-from vedro.events import CleanupEvent, ScenarioReportedEvent, ScenarioRunEvent, StartupEvent
+from vedro.events import (
+    CleanupEvent,
+    ScenarioFailedEvent,
+    ScenarioPassedEvent,
+    ScenarioReportedEvent,
+    ScenarioRunEvent,
+    StartupEvent,
+)
 from vedro.plugins.director import DirectorInitEvent, DirectorPlugin
 
 from vedro_gitlab_reporter import GitlabReporter, GitlabReporterPlugin
@@ -138,6 +145,31 @@ async def test_scenario_passed_with_extra_details(*, dispatcher: Dispatcher, pri
 
 
 @pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_scenario_passed_with_show_path(*, dispatcher: Dispatcher, printer_: Mock):
+    with given:
+        await fire_arg_parsed_event(dispatcher, show_paths=True)
+
+        scenario_result = make_scenario_result().mark_passed()
+        await dispatcher.fire(ScenarioPassedEvent(scenario_result))
+
+        aggregated_result = make_aggregated_result(scenario_result)
+        event = ScenarioReportedEvent(aggregated_result)
+
+    with when:
+        await dispatcher.fire(event)
+
+    with then:
+        assert printer_.mock_calls == [
+            call.print_scenario_subject(aggregated_result.scenario.subject,
+                                        ScenarioStatus.PASSED,
+                                        elapsed=aggregated_result.elapsed,
+                                        prefix=" "),
+            call.print_scenario_extra_details([f"{aggregated_result.scenario.path.name}"],
+                                              prefix=" " * 3)
+        ]
+
+
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
 async def test_scenario_failed_with_extra_details(*, dispatcher: Dispatcher, printer_: Mock):
     with given:
         await fire_arg_parsed_event(dispatcher)
@@ -179,6 +211,31 @@ async def test_scenario_failed(*, dispatcher: Dispatcher, printer_: Mock):
                                         ScenarioStatus.FAILED,
                                         elapsed=aggregated_result.elapsed,
                                         prefix=" ")
+        ]
+
+
+@pytest.mark.usefixtures(gitlab_reporter.__name__)
+async def test_scenario_failed_with_show_paths(*, dispatcher: Dispatcher, printer_: Mock):
+    with given:
+        await fire_arg_parsed_event(dispatcher, show_paths=True)
+
+        scenario_result = make_scenario_result().mark_failed()
+        await dispatcher.fire(ScenarioFailedEvent(scenario_result))
+
+        aggregated_result = make_aggregated_result(scenario_result)
+        event = ScenarioReportedEvent(aggregated_result)
+
+    with when:
+        await dispatcher.fire(event)
+
+    with then:
+        assert printer_.mock_calls == [
+            call.print_scenario_subject(aggregated_result.scenario.subject,
+                                        ScenarioStatus.FAILED,
+                                        elapsed=aggregated_result.elapsed,
+                                        prefix=" "),
+            call.print_scenario_extra_details([f"{aggregated_result.scenario.path.name}"],
+                                              prefix=" " * 3)
         ]
 
 

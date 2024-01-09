@@ -56,7 +56,9 @@ async def fire_arg_parsed_event(dispatcher: Dispatcher, *,
                                 tb_show_internal_calls: bool =
                                 GitlabReporter.tb_show_internal_calls,
                                 tb_show_locals: bool =
-                                GitlabReporter.tb_show_locals) -> None:
+                                GitlabReporter.tb_show_locals,
+                                show_paths: bool =
+                                GitlabReporter.show_paths) -> None:
     await dispatcher.fire(ConfigLoadedEvent(Path(), Config))
 
     arg_parse_event = ArgParseEvent(ArgumentParser())
@@ -64,7 +66,8 @@ async def fire_arg_parsed_event(dispatcher: Dispatcher, *,
 
     namespace = Namespace(gitlab_collapsable=collapsable_mode,
                           gitlab_tb_show_internal_calls=tb_show_internal_calls,
-                          gitlab_tb_show_locals=tb_show_locals)
+                          gitlab_tb_show_locals=tb_show_locals,
+                          gitlab_show_paths=show_paths)
     arg_parsed_event = ArgParsedEvent(namespace)
     await dispatcher.fire(arg_parsed_event)
 
