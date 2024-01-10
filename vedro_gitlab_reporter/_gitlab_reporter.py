@@ -9,6 +9,8 @@ from vedro.events import (
     ArgParsedEvent,
     ArgParseEvent,
     CleanupEvent,
+    ScenarioFailedEvent,
+    ScenarioPassedEvent,
     ScenarioReportedEvent,
     ScenarioRunEvent,
     StartupEvent,
@@ -32,6 +34,7 @@ class GitlabReporterPlugin(Reporter):
         self._tb_show_internal_calls = config.tb_show_internal_calls
         self._tb_show_locals = config.tb_show_locals
         self._tb_max_frames = config.tb_max_frames
+        self._show_paths = config.show_paths
         self._collapsable_mode: Union[GitlabCollapsableMode, None] = None
 
         self._namespace: Union[str, None] = None
@@ -48,6 +51,8 @@ class GitlabReporterPlugin(Reporter):
                         .listen(ArgParsedEvent, self.on_arg_parsed) \
                         .listen(StartupEvent, self.on_startup) \
                         .listen(ScenarioRunEvent, self.on_scenario_run) \
+                        .listen(ScenarioPassedEvent, self.on_scenario_end) \
+                        .listen(ScenarioFailedEvent, self.on_scenario_end) \
                         .listen(StepPassedEvent, self.on_step_end) \
                         .listen(StepFailedEvent, self.on_step_end) \
                         .listen(ScenarioReportedEvent, self.on_scenario_reported) \
@@ -68,11 +73,16 @@ class GitlabReporterPlugin(Reporter):
                            action="store_true",
                            default=self._tb_show_locals,
                            help="Show local variables in the traceback output")
+        group.add_argument("--gitlab-show-paths",
+                           action="store_true",
+                           default=self._show_paths,
+                           help="Show the relative path of each passed scenario")
 
     def on_arg_parsed(self, event: ArgParsedEvent) -> None:
         self._collapsable_mode = event.args.gitlab_collapsable
         self._tb_show_internal_calls = event.args.gitlab_tb_show_internal_calls
         self._tb_show_locals = event.args.gitlab_tb_show_locals
+        self._show_paths = event.args.gitlab_show_paths
 
     def on_startup(self, event: StartupEvent) -> None:
         self._printer.print_header()
@@ -88,6 +98,9 @@ class GitlabReporterPlugin(Reporter):
             self._scenario_steps = []
         self._scenario_steps.append({})
         self._scenario_result = event.scenario_result
+
+    def on_scenario_end(self, event: Union[ScenarioPassedEvent, ScenarioFailedEvent]) -> None:
+        self._add_extra_details(event.scenario_result)
 
     def on_step_end(self, event: Union[StepPassedEvent, StepFailedEvent]) -> None:
         assert isinstance(self._scenario_result, ScenarioResult)
@@ -246,6 +259,10 @@ class GitlabReporterPlugin(Reporter):
         else:
             self._printer.print_scope_val(val)
 
+    def _add_extra_details(self, scenario_result: ScenarioResult) -> None:
+        if self._show_paths:
+            scenario_result.add_extra_details(f"{scenario_result.scenario.rel_path}")
+
 
 class GitlabReporter(PluginConfig):
     plugin = GitlabReporterPlugin
@@ -258,3 +275,6 @@ class GitlabReporter(PluginConfig):
 
     # Max stack trace entries to show (min=4)
     tb_max_frames: int = 8
+
+    # Show the relative path of each passed scenario
+    show_paths: bool = False
