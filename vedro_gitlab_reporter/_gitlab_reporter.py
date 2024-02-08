@@ -80,19 +80,17 @@ class GitlabReporterPlugin(Reporter):
                            type=str.upper,
                            help="Show the relative path of scenario in status (failed or passed). "
                                 "--gitlab-show-paths - show all paths of scenarios; "
-                                "--gitlab-show-paths=failed passed - show all paths of scenarios;"
-                                "--gitlab-show-paths=failed - show all failed paths of scenarios;")
+                                "--gitlab-show-paths failed passed - show all paths of scenarios;"
+                                "--gitlab-show-paths failed - show all failed paths of scenarios;")
 
     def on_arg_parsed(self, event: ArgParsedEvent) -> None:
         self._collapsable_mode = event.args.gitlab_collapsable
         self._tb_show_internal_calls = event.args.gitlab_tb_show_internal_calls
         self._tb_show_locals = event.args.gitlab_tb_show_locals
 
-        if event.args.gitlab_show_paths == []:
-            # --gitlab-show-path -> gitlab_show_paths = [] -> all status
-            self._show_paths = [ScenarioStatus.FAILED, ScenarioStatus.PASSED]
-        else:
-            self._show_paths = event.args.gitlab_show_paths
+        # --gitlab-show-path -> default values (all)
+        self._show_paths = GitlabReporter.show_paths if event.args.gitlab_show_paths == [] \
+            else event.args.gitlab_show_paths
 
     def on_startup(self, event: StartupEvent) -> None:
         self._printer.print_header()
@@ -270,7 +268,7 @@ class GitlabReporterPlugin(Reporter):
             self._printer.print_scope_val(val)
 
     def _add_extra_details(self, scenario_result: ScenarioResult) -> None:
-        if self._show_paths and scenario_result.status in self._show_paths:
+        if self._show_paths and scenario_result.status.value in self._show_paths:
             scenario_result.add_extra_details(f"{scenario_result.scenario.rel_path}")
 
 
@@ -287,4 +285,4 @@ class GitlabReporter(PluginConfig):
     tb_max_frames: int = 8
 
     # Show the relative path of scenario in status
-    show_paths: list = [ScenarioStatus.FAILED, ScenarioStatus.PASSED]
+    show_paths: list = [status.value for status in [ScenarioStatus.FAILED, ScenarioStatus.PASSED]]
