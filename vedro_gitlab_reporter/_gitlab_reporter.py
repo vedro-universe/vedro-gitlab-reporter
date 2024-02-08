@@ -17,6 +17,7 @@ from vedro.events import (
     StepFailedEvent,
     StepPassedEvent,
 )
+from vedro.core import ScenarioStatus
 from vedro.plugins.director import DirectorInitEvent, Reporter
 from vedro.plugins.director.rich import RichPrinter
 
@@ -74,15 +75,24 @@ class GitlabReporterPlugin(Reporter):
                            default=self._tb_show_locals,
                            help="Show local variables in the traceback output")
         group.add_argument("--gitlab-show-paths",
-                           action="store_true",
-                           default=self._show_paths,
-                           help="Show the relative path of each passed scenario")
+                           default=None,
+                           nargs="*",
+                           type=str.upper,
+                           help="Show the relative path of scenario in status (failed or passed). "
+                                "--gitlab-show-paths - show all paths of scenarios; "
+                                "--gitlab-show-paths=failed passed - show all paths of scenarios;"
+                                "--gitlab-show-paths=failed - show all failed paths of scenarios;")
 
     def on_arg_parsed(self, event: ArgParsedEvent) -> None:
         self._collapsable_mode = event.args.gitlab_collapsable
         self._tb_show_internal_calls = event.args.gitlab_tb_show_internal_calls
         self._tb_show_locals = event.args.gitlab_tb_show_locals
-        self._show_paths = event.args.gitlab_show_paths
+
+        if event.args.gitlab_show_paths == []:
+            # --gitlab-show-path -> gitlab_show_paths = [] -> all status
+            self._show_paths = [ScenarioStatus.FAILED, ScenarioStatus.PASSED]
+        else:
+            self._show_paths = event.args.gitlab_show_paths
 
     def on_startup(self, event: StartupEvent) -> None:
         self._printer.print_header()
@@ -260,7 +270,7 @@ class GitlabReporterPlugin(Reporter):
             self._printer.print_scope_val(val)
 
     def _add_extra_details(self, scenario_result: ScenarioResult) -> None:
-        if self._show_paths:
+        if self._show_paths and scenario_result.status in self._show_paths:
             scenario_result.add_extra_details(f"{scenario_result.scenario.rel_path}")
 
 
@@ -276,5 +286,5 @@ class GitlabReporter(PluginConfig):
     # Max stack trace entries to show (min=4)
     tb_max_frames: int = 8
 
-    # Show the relative path of each passed scenario
-    show_paths: bool = False
+    # Show the relative path of scenario in status
+    show_paths: list = [ScenarioStatus.FAILED, ScenarioStatus.PASSED]

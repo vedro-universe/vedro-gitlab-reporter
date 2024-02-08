@@ -57,7 +57,7 @@ async def fire_arg_parsed_event(dispatcher: Dispatcher, *,
                                 GitlabReporter.tb_show_internal_calls,
                                 tb_show_locals: bool =
                                 GitlabReporter.tb_show_locals,
-                                show_paths: bool =
+                                show_paths: Optional[list] =
                                 GitlabReporter.show_paths) -> None:
     await dispatcher.fire(ConfigLoadedEvent(Path(), Config))
 
