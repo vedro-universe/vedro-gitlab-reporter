@@ -194,7 +194,9 @@ async def test_scenario_passed_with_none_show_path(*, dispatcher: Dispatcher, pr
 
 
 @pytest.mark.usefixtures(gitlab_reporter.__name__)
-async def test_scenario_passed_with_specified_show_path_included(*, dispatcher: Dispatcher, printer_: Mock):
+async def test_scenario_passed_with_specified_show_path_included(
+    *, dispatcher: Dispatcher, printer_: Mock
+):
     with given:
         await fire_arg_parsed_event(dispatcher, show_paths=[ScenarioStatus.PASSED.value])
 
@@ -219,7 +221,9 @@ async def test_scenario_passed_with_specified_show_path_included(*, dispatcher: 
 
 
 @pytest.mark.usefixtures(gitlab_reporter.__name__)
-async def test_scenario_passed_with_specified_show_path_not_included(*, dispatcher: Dispatcher, printer_: Mock):
+async def test_scenario_passed_with_specified_show_path_not_included(
+    *, dispatcher: Dispatcher, printer_: Mock
+):
     with given:
         await fire_arg_parsed_event(dispatcher, show_paths=[ScenarioStatus.FAILED.value])
 
