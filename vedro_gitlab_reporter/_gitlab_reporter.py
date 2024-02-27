@@ -4,7 +4,7 @@ from functools import reduce
 from typing import Any, Callable, Dict, List, Set, Type, Union
 
 import vedro
-from vedro.core import Dispatcher, PluginConfig, ScenarioResult
+from vedro.core import Dispatcher, PluginConfig, ScenarioResult, ScenarioStatus
 from vedro.events import (
     ArgParsedEvent,
     ArgParseEvent,
@@ -34,7 +34,7 @@ class GitlabReporterPlugin(Reporter):
         self._tb_show_internal_calls = config.tb_show_internal_calls
         self._tb_show_locals = config.tb_show_locals
         self._tb_max_frames = config.tb_max_frames
-        self._show_paths = config.show_paths
+        self._show_paths = config.show_paths if not False else []
         self._collapsable_mode: Union[GitlabCollapsableMode, None] = None
 
         self._namespace: Union[str, None] = None
@@ -74,15 +74,25 @@ class GitlabReporterPlugin(Reporter):
                            default=self._tb_show_locals,
                            help="Show local variables in the traceback output")
         group.add_argument("--gitlab-show-paths",
-                           action="store_true",
-                           default=self._show_paths,
-                           help="Show the relative path of each passed scenario")
+                           default=None,
+                           nargs="*",
+                           type=str.upper,
+                           choices=[ScenarioStatus.FAILED.value, ScenarioStatus.PASSED.value],
+                           help="Show the relative path of scenario in status (failed or passed)."
+                                "--gitlab-show-paths - show all paths of scenarios; "
+                                "--gitlab-show-paths failed passed - show all paths of scenarios;"
+                                "--gitlab-show-paths failed - show all failed paths of scenarios;")
 
     def on_arg_parsed(self, event: ArgParsedEvent) -> None:
         self._collapsable_mode = event.args.gitlab_collapsable
         self._tb_show_internal_calls = event.args.gitlab_tb_show_internal_calls
         self._tb_show_locals = event.args.gitlab_tb_show_locals
-        self._show_paths = event.args.gitlab_show_paths
+
+        # --gitlab-show-path -> default values (all)
+        if event.args.gitlab_show_paths == []:
+            self._show_paths = [ScenarioStatus.FAILED, ScenarioStatus.PASSED]
+        elif event.args.gitlab_show_paths is not None:
+            self._show_paths = [ScenarioStatus(value) for value in event.args.gitlab_show_paths]
 
     def on_startup(self, event: StartupEvent) -> None:
         self._printer.print_header()
@@ -260,7 +270,7 @@ class GitlabReporterPlugin(Reporter):
             self._printer.print_scope_val(val)
 
     def _add_extra_details(self, scenario_result: ScenarioResult) -> None:
-        if self._show_paths:
+        if self._show_paths and scenario_result.status in self._show_paths:
             scenario_result.add_extra_details(f"{scenario_result.scenario.rel_path}")
 
 
@@ -276,5 +286,5 @@ class GitlabReporter(PluginConfig):
     # Max stack trace entries to show (min=4)
     tb_max_frames: int = 8
 
-    # Show the relative path of each passed scenario
-    show_paths: bool = False
+    # Show the relative path of scenario in status
+    show_paths: List[ScenarioStatus] = []
