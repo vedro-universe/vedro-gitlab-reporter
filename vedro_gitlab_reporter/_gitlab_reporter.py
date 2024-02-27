@@ -287,4 +287,4 @@ class GitlabReporter(PluginConfig):
     tb_max_frames: int = 8
 
     # Show the relative path of scenario in status
-    show_paths: list[ScenarioStatus] = []
+    show_paths: List[ScenarioStatus] = []
